@@ -60,6 +60,7 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
       const data = await res.json()
       setStatus('done')
       setProgress(`✓ ${data.count} foto${data.count !== 1 ? 's' : ''} subida${data.count !== 1 ? 's' : ''}`)
+      router.refresh()
       if (onSuccess) setTimeout(onSuccess, 900)
       else setTimeout(() => router.push('/global'), 1200)
     } else {
