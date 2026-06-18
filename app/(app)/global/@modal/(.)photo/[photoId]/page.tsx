@@ -71,6 +71,7 @@ export default async function PhotoModal({ params }: { params: Promise<{ photoId
       hasGps={hasGps}
       gpsLat={hasGps ? exif.GPSLatitude : null}
       gpsLon={hasGps ? exif.GPSLongitude : null}
+      downloadable={photo.downloadable !== 0}
       isFav={isFav}
       favCount={Number(favCount)}
       isOwn={photo.userId === session.user.id}

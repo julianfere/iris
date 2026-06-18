@@ -53,6 +53,10 @@ export default function PhotoCard({
           onClick={e => e.stopPropagation()}
         >
           {initials(userName ?? '')}
+          {userId && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/api/users/${userId}/avatar`} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          )}
         </Link>
         <div className="m-info">
           <div className="m-title">{title}</div>

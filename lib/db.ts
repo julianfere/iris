@@ -67,6 +67,12 @@ if (!userCols.some(c => c.name === 'bio')) {
   sqlite.exec('ALTER TABLE users ADD COLUMN bio TEXT')
 }
 
+// Add downloadable column if missing
+const photoColsInit = sqlite.prepare("PRAGMA table_info(photos)").all() as { name: string }[]
+if (!photoColsInit.some(c => c.name === 'downloadable')) {
+  sqlite.exec('ALTER TABLE photos ADD COLUMN downloadable INTEGER NOT NULL DEFAULT 1')
+}
+
 // Remove group_id from photos (pre-groups-removal installs)
 const photoCols = sqlite.prepare("PRAGMA table_info(photos)").all() as { name: string }[]
 if (photoCols.some(c => c.name === 'group_id')) {

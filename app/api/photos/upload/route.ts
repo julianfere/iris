@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { photos, tags, photoTags } from '@/lib/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import Busboy from 'busboy'
 import { createWriteStream } from 'fs'
 import { stat } from 'fs/promises'
@@ -27,13 +27,15 @@ export async function POST(req: NextRequest) {
 
   const uploadedIds: string[] = []
   const filePromises: Promise<void>[] = []
-  let batchAlbum: string | null = null
+  let batchTags: string[] = []
   let batchTitle: string | null = null
+  let batchDownloadable = 1
 
   return new Promise<NextResponse>((resolve) => {
     busboy.on('field', (name: string, val: string) => {
-      if (name === 'album' && val.trim()) batchAlbum = val.trim().toLowerCase()
+      if (name === 'tag' && val.trim()) batchTags.push(val.trim().toLowerCase())
       if (name === 'title' && val.trim()) batchTitle = val.trim()
+      if (name === 'downloadable') batchDownloadable = val === '1' ? 1 : 0
     })
 
     busboy.on('file', (_field, file, { filename, mimeType }) => {
@@ -71,18 +73,17 @@ export async function POST(req: NextRequest) {
               height: dims.height,
               exifData: JSON.stringify(exif),
               title: batchTitle ?? path.parse(filename).name.replace(/[-_]/g, ' ').trim(),
-              album: batchAlbum,
+              album: batchTags[0] ?? null,
+              downloadable: batchDownloadable,
               takenAt,
               createdAt: Date.now(),
             }).run()
 
-            if (batchAlbum) {
-              let tag = db.select({ id: tags.id }).from(tags)
-                .where(eq(tags.name, batchAlbum))
-                .get()
+            for (const tagName of batchTags) {
+              let tag = db.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get()
               if (!tag) {
                 const tagId = crypto.randomUUID()
-                db.insert(tags).values({ id: tagId, name: batchAlbum }).run()
+                db.insert(tags).values({ id: tagId, name: tagName }).run()
                 tag = { id: tagId }
               }
               db.insert(photoTags).values({ photoId: id, tagId: tag.id }).onConflictDoNothing().run()

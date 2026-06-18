@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/schema'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { initials } from '@/lib/utils'
+import UserAvatar from '@/components/UserAvatar'
 
 export default async function MembersPage() {
   const session = await auth()
@@ -35,14 +35,12 @@ export default async function MembersPage() {
               href={`/profile?userId=${u.id}`}
               style={{display:'flex',alignItems:'center',gap:13,padding:'13px 0',borderBottom:'1px solid var(--line)',textDecoration:'none',color:'inherit'}}
             >
-              <div style={{
-                width:40,height:40,borderRadius:'50%',flexShrink:0,
-                background:u.avatarColor??'var(--s2)',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:14,fontWeight:600,color:'#fff',
-              }}>
-                {initials(u.name)}
-              </div>
+              <UserAvatar
+                userId={u.id}
+                name={u.name}
+                avatarColor={u.avatarColor ?? 'var(--s2)'}
+                style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, fontSize: 14 }}
+              />
               <div style={{flex:1,minWidth:0}}>
                 <span style={{fontSize:14.5,fontWeight:600}}>{u.name}</span>
                 {u.bio && <div style={{fontSize:13,color:'var(--dim)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.bio}</div>}

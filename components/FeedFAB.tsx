@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import UploadSheet from '@/components/UploadSheet'
 
-export default function FeedFAB({ existingAlbums }: { existingAlbums: string[] }) {
+export default function FeedFAB({ existingTags }: { existingTags: string[] }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -38,7 +38,7 @@ export default function FeedFAB({ existingAlbums }: { existingAlbums: string[] }
 
       {open && (
         <UploadSheet
-          existingAlbums={existingAlbums}
+          existingTags={existingTags}
           onClose={() => setOpen(false)}
         />
       )}

@@ -31,6 +31,7 @@ export type PhotoSidebarProps = {
   hasGps: boolean
   gpsLat: number | null
   gpsLon: number | null
+  downloadable: boolean
   // State
   isFav: boolean
   favCount: number
@@ -58,6 +59,8 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
       <div className="author-row">
         <Link href={`/profile?userId=${p.userId}`} className="author-av" style={{ background: p.userAvatarColor, color: '#fff' }}>
           {initials(p.userName)}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/users/${p.userId}/avatar`} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'none' }} onLoad={(e) => { (e.target as HTMLImageElement).style.display = 'block' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
         </Link>
         <div style={{ flex: 1 }}>
           <div className="author-name">{p.userName}</div>
@@ -80,20 +83,25 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
       </div>
 
       {/* Download + Delete */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <a
-          className="btn-download"
-          style={{ flex: 1 }}
-          href={`/api/photos/${p.photoId}/original`}
-          download={p.originalName}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8 2v8M5 7l3 3 3-3M3 13.5h10" />
-          </svg>
-          Descargar original · {formatBytes(p.size)}
-        </a>
-        {p.isOwn && <DeletePhotoButton photoId={p.photoId} />}
-      </div>
+      {(p.downloadable || p.isOwn) && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <a
+            className="btn-download"
+            style={{ flex: 1 }}
+            href={`/api/photos/${p.photoId}/original`}
+            download={p.originalName}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 2v8M5 7l3 3 3-3M3 13.5h10" />
+            </svg>
+            Descargar original · {formatBytes(p.size)}
+          </a>
+          {p.isOwn && <DeletePhotoButton photoId={p.photoId} />}
+        </div>
+      )}
+      {!p.downloadable && !p.isOwn && (
+        <div style={{ marginBottom: 10 }} />
+      )}
 
       <div className="wa-note">
         <span className="ac">↯</span>

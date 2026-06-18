@@ -3,21 +3,42 @@ export const dynamic = 'force-dynamic'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { photos, users, tags, photoTags } from '@/lib/schema'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, and, desc, sql, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { initials } from '@/lib/utils'
 import PhotoCard from '@/components/PhotoCard'
+import UserAvatar from '@/components/UserAvatar'
+import HeaderProfileChip from '@/components/HeaderProfileChip'
+
+function toArray(val: string | string[] | undefined): string[] {
+  if (!val) return []
+  return typeof val === 'string' ? [val] : val
+}
+
+function buildUrl(tagList: string[], userList: string[], q: string) {
+  const p = new URLSearchParams()
+  if (q) p.set('q', q)
+  tagList.forEach(t => p.append('tag', t))
+  userList.forEach(u => p.append('userId', u))
+  const qs = p.toString()
+  return `/global/search${qs ? '?' + qs : ''}`
+}
+
+const XIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/>
+  </svg>
+)
 
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string>>
+  searchParams: Promise<Record<string, string | string[]>>
 }) {
   const sp = await searchParams
-  const q            = sp.q?.trim() ?? ''
-  const activeTag    = sp.tag ?? ''
-  const filterUserId = sp.userId ?? ''
+  const q           = (typeof sp.q === 'string' ? sp.q : (sp.q?.[0] ?? '')).trim()
+  const activeTags  = toArray(sp.tag).filter(Boolean)
+  const filterUserIds = toArray(sp.userId).filter(Boolean)
 
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
@@ -35,63 +56,81 @@ export default async function SearchPage({
     .from(users)
     .all()
 
-  const hasFilter = q || activeTag || filterUserId
+  const hasFilter = q !== '' || activeTags.length > 0 || filterUserIds.length > 0
   let results: { photo: typeof photos.$inferSelect; user: { id: string; name: string; avatarColor: string } | null }[] = []
 
   if (hasFilter) {
     const conditions: ReturnType<typeof eq>[] = []
 
-    if (filterUserId) conditions.push(eq(photos.userId, filterUserId) as ReturnType<typeof eq>)
-
-    if (q) conditions.push(sql`LOWER(${photos.title}) LIKE LOWER(${'%' + q + '%'})` as ReturnType<typeof eq>)
-
-    if (activeTag) {
-      conditions.push(
-        sql`${photos.id} IN (
-          SELECT pt.photo_id FROM photo_tags pt
-          INNER JOIN tags t ON pt.tag_id = t.id
-          WHERE t.name = ${activeTag}
-        )` as ReturnType<typeof eq>
-      )
+    if (filterUserIds.length > 0) {
+      conditions.push(inArray(photos.userId, filterUserIds) as ReturnType<typeof eq>)
     }
 
-    results = db
-      .select({
-        photo: photos,
-        user: { id: users.id, name: users.name, avatarColor: users.avatarColor },
-      })
-      .from(photos)
-      .leftJoin(users, eq(photos.userId, users.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(photos.createdAt))
-      .all()
+    if (q) {
+      conditions.push(sql`LOWER(${photos.title}) LIKE LOWER(${'%' + q + '%'})` as ReturnType<typeof eq>)
+    }
+
+    let skip = false
+    if (activeTags.length > 0) {
+      const matchingPhotoIds = db
+        .selectDistinct({ photoId: photoTags.photoId })
+        .from(photoTags)
+        .innerJoin(tags, and(eq(photoTags.tagId, tags.id), inArray(tags.name, activeTags)))
+        .all()
+        .map(r => r.photoId)
+
+      if (matchingPhotoIds.length > 0) {
+        conditions.push(inArray(photos.id, matchingPhotoIds) as ReturnType<typeof eq>)
+      } else {
+        skip = true
+      }
+    }
+
+    if (!skip) {
+      results = db
+        .select({
+          photo: photos,
+          user: { id: users.id, name: users.name, avatarColor: users.avatarColor },
+        })
+        .from(photos)
+        .leftJoin(users, eq(photos.userId, users.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(photos.createdAt))
+        .all()
+    }
   }
 
-  const filterUserName = filterUserId
-    ? allUsers.find(m => m.userId === filterUserId)?.user?.name ?? null
-    : null
+  const filterUserNames = filterUserIds.map(uid => ({
+    id: uid,
+    name: allUsers.find(m => m.userId === uid)?.user?.name ?? uid,
+  }))
 
-  const clearUrl = (keep: Record<string, string>) => {
-    const p = new URLSearchParams(keep)
-    return `/global/search${p.toString() ? '?' + p.toString() : ''}`
-  }
+  const chipStyle = {
+    display: 'flex', alignItems: 'center', gap: 6,
+    background: 'color-mix(in srgb,var(--ac) 14%,transparent)',
+    border: '1px solid color-mix(in srgb,var(--ac) 40%,transparent)',
+    borderRadius: 20, padding: '5px 10px',
+    fontSize: 13, color: 'var(--ac)', textDecoration: 'none',
+  } as const
 
   return (
     <>
       <header className="app-header">
         <div className="logo-sq" />
         <span style={{ flex: 1, fontSize: 15, fontWeight: 600, letterSpacing: '-.02em' }}>Iris</span>
-        <Link href="/profile" className="avatar" style={{ width: 32, height: 32, background: allUsers.find(m => m.userId === session.user.id)?.user?.avatarColor ?? 'var(--s2)' }}>
-          {initials(session.user.name ?? '')}
-        </Link>
+        <HeaderProfileChip
+          userId={session.user.id}
+          name={session.user.name ?? ''}
+          avatarColor={allUsers.find(m => m.userId === session.user.id)?.user?.avatarColor ?? 'var(--s2)'}
+        />
       </header>
 
       <main style={{ paddingBottom: 'calc(86px + env(safe-area-inset-bottom))' }}>
         <div className="feed-wrap">
 
           <form method="GET" action="/global/search" style={{ marginBottom: 24 }}>
-            {activeTag && <input type="hidden" name="tag" value={activeTag} />}
-            {filterUserId && <input type="hidden" name="userId" value={filterUserId} />}
+            {activeTags.map(t => <input key={t} type="hidden" name="tag" value={t} />)}
+            {filterUserIds.map(u => <input key={u} type="hidden" name="userId" value={u} />)}
             <div style={{ position: 'relative' }}>
               <svg style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
                 width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" strokeWidth="1.8" strokeLinecap="round">
@@ -109,25 +148,23 @@ export default async function SearchPage({
 
           {hasFilter && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-              {activeTag && (
-                <Link href={clearUrl({ ...(q && { q }), ...(filterUserId && { userId: filterUserId }) })}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'color-mix(in srgb,var(--ac) 14%,transparent)', border: '1px solid color-mix(in srgb,var(--ac) 40%,transparent)', borderRadius: 20, padding: '5px 10px', fontSize: 13, color: 'var(--ac)', textDecoration: 'none' }}>
-                  {activeTag}
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/></svg>
+              {activeTags.map(tag => (
+                <Link key={tag} href={buildUrl(activeTags.filter(t => t !== tag), filterUserIds, q)} style={chipStyle}>
+                  {tag}
+                  <XIcon />
                 </Link>
-              )}
-              {filterUserName && (
-                <Link href={clearUrl({ ...(q && { q }), ...(activeTag && { tag: activeTag }) })}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'color-mix(in srgb,var(--ac) 14%,transparent)', border: '1px solid color-mix(in srgb,var(--ac) 40%,transparent)', borderRadius: 20, padding: '5px 10px', fontSize: 13, color: 'var(--ac)', textDecoration: 'none' }}>
-                  {filterUserName}
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/></svg>
+              ))}
+              {filterUserNames.map(({ id, name }) => (
+                <Link key={id} href={buildUrl(activeTags, filterUserIds.filter(u => u !== id), q)} style={chipStyle}>
+                  {name}
+                  <XIcon />
                 </Link>
-              )}
+              ))}
               {q && (
-                <Link href={clearUrl({ ...(activeTag && { tag: activeTag }), ...(filterUserId && { userId: filterUserId }) })}
+                <Link href={buildUrl(activeTags, filterUserIds, '')}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--s2)', border: '1px solid var(--line)', borderRadius: 20, padding: '5px 10px', fontSize: 13, color: 'var(--dim)', textDecoration: 'none' }}>
                   &quot;{q}&quot;
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/></svg>
+                  <XIcon />
                 </Link>
               )}
             </div>
@@ -138,22 +175,23 @@ export default async function SearchPage({
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--dim)', marginBottom: 12 }}>Personas</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {allUsers.map(m => {
-                  const isActive = filterUserId === m.userId
-                  const href = isActive
-                    ? clearUrl({ ...(q && { q }), ...(activeTag && { tag: activeTag }) })
-                    : `/global/search?userId=${m.userId}${activeTag ? '&tag=' + encodeURIComponent(activeTag) : ''}${q ? '&q=' + encodeURIComponent(q) : ''}`
+                  const isActive = filterUserIds.includes(m.userId)
+                  const newUserIds = isActive
+                    ? filterUserIds.filter(u => u !== m.userId)
+                    : [...filterUserIds, m.userId]
                   return (
-                    <Link key={m.userId} href={href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
-                      <div style={{
-                        width: 44, height: 44, borderRadius: '50%',
-                        background: m.user?.avatarColor ?? 'var(--s2)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 15, fontWeight: 600, color: '#fff',
-                        outline: isActive ? '2px solid var(--ac)' : 'none',
-                        outlineOffset: 2,
-                      }}>
-                        {initials(m.user?.name ?? '')}
-                      </div>
+                    <Link key={m.userId} href={buildUrl(activeTags, newUserIds, q)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+                      <UserAvatar
+                        userId={m.userId}
+                        name={m.user?.name ?? ''}
+                        avatarColor={m.user?.avatarColor ?? 'var(--s2)'}
+                        style={{
+                          width: 44, height: 44, borderRadius: '50%',
+                          fontSize: 15,
+                          outline: isActive ? '2px solid var(--ac)' : 'none',
+                          outlineOffset: 2,
+                        }}
+                      />
                       <span style={{ fontSize: 11, color: isActive ? 'var(--ac)' : 'var(--dim)', whiteSpace: 'nowrap', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {m.user?.name?.split(' ')[0] ?? ''}
                       </span>
@@ -169,12 +207,12 @@ export default async function SearchPage({
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--dim)', marginBottom: 12 }}>Tags</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {allTags.map(t => {
-                  const isActive = activeTag === t.name
-                  const href = isActive
-                    ? clearUrl({ ...(q && { q }), ...(filterUserId && { userId: filterUserId }) })
-                    : `/global/search?tag=${encodeURIComponent(t.name)}${filterUserId ? '&userId=' + filterUserId : ''}${q ? '&q=' + encodeURIComponent(q) : ''}`
+                  const isActive = activeTags.includes(t.name)
+                  const newTags = isActive
+                    ? activeTags.filter(x => x !== t.name)
+                    : [...activeTags, t.name]
                   return (
-                    <Link key={t.name} href={href} style={{
+                    <Link key={t.name} href={buildUrl(newTags, filterUserIds, q)} style={{
                       display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none',
                       padding: '6px 12px', borderRadius: 20, fontSize: 13,
                       background: isActive ? 'color-mix(in srgb,var(--ac) 18%,transparent)' : 'var(--s1)',
@@ -219,7 +257,7 @@ export default async function SearchPage({
                         size={photo.size}
                         aspectRatio={ar}
                         timeLabel={timeLabel}
-                        tags={activeTag ? [activeTag] : []}
+                        tags={activeTags}
                       />
                     )
                   })}

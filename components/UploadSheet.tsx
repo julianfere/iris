@@ -4,11 +4,11 @@ import { useEffect } from 'react'
 import UploadZone from '@/components/UploadZone'
 
 type Props = {
-  existingAlbums: string[]
+  existingTags: string[]
   onClose: () => void
 }
 
-export default function UploadSheet({ existingAlbums, onClose }: Props) {
+export default function UploadSheet({ existingTags, onClose }: Props) {
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
@@ -56,7 +56,7 @@ export default function UploadSheet({ existingAlbums, onClose }: Props) {
         </div>
 
         <UploadZone
-          existingAlbums={existingAlbums}
+          existingTags={existingTags}
           onSuccess={onClose}
           compact
         />

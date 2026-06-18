@@ -5,19 +5,17 @@ import { db } from '@/lib/db'
 import { photos, users, tags, photoTags } from '@/lib/schema'
 import { eq, desc, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
-import { initials, relativeDate } from '@/lib/utils'
+import { relativeDate } from '@/lib/utils'
 import VisitTracker from '@/components/VisitTracker'
 import FeedFAB from '@/components/FeedFAB'
 import PhotoCard from '@/components/PhotoCard'
+import HeaderProfileChip from '@/components/HeaderProfileChip'
 
 export default async function FeedPage() {
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
-  const members = db
-    .select({ userId: users.id, user: { avatarColor: users.avatarColor, name: users.name } })
-    .from(users)
-    .all()
+  const me = db.select({ avatarColor: users.avatarColor }).from(users).where(eq(users.id, session.user.id)).get()
 
   const rows = db
     .select({
@@ -55,24 +53,17 @@ export default async function FeedPage() {
     byDate[label].push(row)
   }
 
-  const myAvatarColor = members.find(m => m.userId === session.user.id)?.user?.avatarColor ?? 'var(--s2)'
-
   return (
     <>
       <VisitTracker />
       <header className="app-header">
         <div className="logo-sq" />
         <span style={{ flex: 1, fontSize: 15, fontWeight: 600, letterSpacing: '-.02em' }}>Iris</span>
-        <div className="members-row" style={{ marginRight: 12 }}>
-          {members.slice(0, 5).map(m => (
-            <div key={m.userId} className="member-av" style={{ background: m.user?.avatarColor ?? 'var(--s2)', width: 26, height: 26, fontSize: 10 }} title={m.user?.name ?? ''}>
-              {initials(m.user?.name ?? '')}
-            </div>
-          ))}
-        </div>
-        <a href="/profile" className="avatar" style={{ width: 32, height: 32, background: myAvatarColor }}>
-          {initials(session.user.name ?? '')}
-        </a>
+        <HeaderProfileChip
+          userId={session.user.id}
+          name={session.user.name ?? ''}
+          avatarColor={me?.avatarColor ?? 'var(--s2)'}
+        />
       </header>
 
       <main style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}>
@@ -121,7 +112,7 @@ export default async function FeedPage() {
           ))}
         </div>
       </main>
-      <FeedFAB existingAlbums={existingTags} />
+      <FeedFAB existingTags={existingTags} />
     </>
   )
 }

@@ -22,6 +22,7 @@ export const photos = sqliteTable('photos', {
   exifData:     text('exif_data'),
   title:        text('title'),
   album:        text('album'),
+  downloadable: integer('downloadable').notNull().default(1),
   takenAt:      integer('taken_at'),
   createdAt:    integer('created_at').notNull(),
 })
