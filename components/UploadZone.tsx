@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Props = {
@@ -18,7 +18,9 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
   const [downloadable, setDownloadable] = useState(true)
   const [status, setStatus]         = useState<'idle'|'uploading'|'done'|'error'>('idle')
   const [progress, setProgress]     = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging]     = useState(false)
+  const inputRef    = useRef<HTMLInputElement>(null)
+  const dragCounter = useRef(0)
 
   const suggestions = tagInput.trim()
     ? existingTags.filter(t => !selectedTags.includes(t) && t.includes(tagInput.toLowerCase().trim()))
@@ -42,6 +44,30 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
     setFiles(Array.from(e.target.files ?? []))
     setStatus('idle')
   }
+
+  const onDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current++
+    if (dragCounter.current === 1) setDragging(true)
+  }, [])
+
+  const onDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current === 0) setDragging(false)
+  }, [])
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setDragging(false)
+    const dropped = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    if (dropped.length) { setFiles(dropped); setStatus('idle') }
+  }, [])
 
   async function upload() {
     if (!files.length) return
@@ -200,17 +226,36 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
         </div>
       </div>
 
-      <label className="dropzone" style={{ cursor: 'pointer' }}>
+      <label
+        className="dropzone"
+        style={{
+          cursor: 'pointer',
+          ...(dragging && {
+            borderColor: 'var(--ac)',
+            background: 'color-mix(in srgb,var(--ac) 8%,var(--s1))',
+          }),
+        }}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+      >
         <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={onPick} />
-        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="38" height="38" viewBox="0 0 24 24" fill="none"
+          stroke="var(--ac)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: dragging ? 'translateY(-4px)' : 'none', transition: 'transform .15s' }}
+        >
           <path d="M12 16V4M7 9l5-5 5 5M4 19h16" />
         </svg>
         <div className="dropzone-title">
-          {files.length
-            ? `${files.length} foto${files.length !== 1 ? 's' : ''} elegida${files.length !== 1 ? 's' : ''}`
-            : 'Arrastrá tus fotos o tocá para elegir'}
+          {dragging
+            ? 'Soltá para agregar'
+            : files.length
+              ? `${files.length} foto${files.length !== 1 ? 's' : ''} elegida${files.length !== 1 ? 's' : ''}`
+              : 'Arrastrá tus fotos o tocá para elegir'}
         </div>
-        <div className="dropzone-sub">JPEG · RAW · HEIC · PNG — se sube el original sin tocar</div>
+        <div className="dropzone-sub">JPEG · HEIC · PNG · WebP</div>
       </label>
 
       {files.length > 0 && status !== 'done' && (

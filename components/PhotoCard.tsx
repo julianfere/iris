@@ -13,6 +13,7 @@ type Props = {
   cam: string
   fl: string
   size: number
+  originalSize?: number | null
   aspectRatio: number
   timeLabel: string
   tags: string[]
@@ -20,7 +21,7 @@ type Props = {
 
 export default function PhotoCard({
   photoId, userId, avatarColor, userName,
-  title, cam, fl, size, aspectRatio, timeLabel, tags,
+  title, cam, fl, size, originalSize, aspectRatio, timeLabel, tags,
 }: Props) {
   const router = useRouter()
 
@@ -38,13 +39,13 @@ export default function PhotoCard({
         loading="lazy"
       />
       <div className="photo-overlay">
-        <div className="orig-badge">● ORIGINAL · {formatBytes(size)}</div>
+        <div className="orig-badge">● ORIGINAL · {formatBytes(originalSize ?? size)}</div>
         <div>
           <div className="overlay-title">{title}</div>
           <div className="overlay-cam">{cam}{fl ? ' · ' + fl : ''}</div>
         </div>
       </div>
-      <div className="mobile-badge">● ORIGINAL · {formatBytes(size)}</div>
+      <div className="mobile-badge">● ORIGINAL · {formatBytes(originalSize ?? size)}</div>
       <div className="mobile-meta">
         <Link
           href={`/global/search?userId=${userId ?? ''}`}

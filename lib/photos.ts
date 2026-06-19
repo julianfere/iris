@@ -30,6 +30,15 @@ export function thumbPath(filename: string) {
   return path.join(THUMBS_DIR, path.parse(filename).name + '.webp')
 }
 
+export async function compressToWebP(srcPath: string, destPath: string): Promise<{ width: number; height: number; size: number }> {
+  const { default: sharp } = await import('sharp')
+  const buffer = await fs.readFile(srcPath)
+  const info = await sharp(buffer)
+    .webp({ quality: 90 })
+    .toFile(destPath)
+  return { width: info.width, height: info.height, size: info.size }
+}
+
 export async function generateThumb(srcPath: string, destPath: string): Promise<void> {
   const { default: sharp } = await import('sharp')
   await sharp(srcPath)

@@ -84,10 +84,9 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
 
       {/* Download + Delete */}
       {(p.downloadable || p.isOwn) && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
           <a
             className="btn-download"
-            style={{ flex: 1 }}
             href={`/api/photos/${p.photoId}/original`}
             download={p.originalName}
           >

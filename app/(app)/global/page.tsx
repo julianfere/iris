@@ -101,6 +101,7 @@ export default async function FeedPage() {
                       cam={cam}
                       fl={fl}
                       size={photo.size}
+                      originalSize={photo.originalSize}
                       aspectRatio={ar}
                       timeLabel={timeLabel}
                       tags={tagsByPhoto[photo.id] ?? []}

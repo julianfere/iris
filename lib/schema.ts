@@ -16,6 +16,7 @@ export const photos = sqliteTable('photos', {
   filename:     text('filename').notNull(),
   originalName: text('original_name').notNull(),
   size:         integer('size').notNull(),
+  originalSize: integer('original_size'),
   mimeType:     text('mime_type').notNull(),
   width:        integer('width'),
   height:       integer('height'),

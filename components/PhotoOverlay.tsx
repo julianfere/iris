@@ -9,17 +9,29 @@ type Props = PhotoSidebarProps & {
   nextId: string | null
 }
 
+// Module-level flag: true while the overlay is open across navigations
+let overlayOpen = false
+
 export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props) {
   const router = useRouter()
   const touchStartX = useRef<number | null>(null)
+  const animateIn = !overlayOpen
 
   const { photoId } = sidebarProps
 
-  function close() { router.back() }
+  function close() {
+    overlayOpen = false
+    router.back()
+  }
 
   function goTo(id: string) {
-    router.push(`/global/photo/${id}`)
+    router.replace(`/global/photo/${id}`)
   }
+
+  useEffect(() => {
+    overlayOpen = true
+    return () => { overlayOpen = false }
+  }, [])
 
   // Keyboard navigation
   useEffect(() => {
@@ -67,7 +79,7 @@ export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props)
         background: 'rgba(0,0,0,.85)',
         backdropFilter: 'blur(2px)',
         display: 'flex', flexDirection: 'column',
-        animation: 'cr-fade .15s ease both',
+        animation: animateIn ? 'cr-fade .15s ease both' : undefined,
       }}
       onClick={e => { if (e.target === e.currentTarget) close() }}
     >

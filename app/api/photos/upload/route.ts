@@ -5,10 +5,10 @@ import { photos, tags, photoTags } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
 import Busboy from 'busboy'
 import { createWriteStream } from 'fs'
-import { stat } from 'fs/promises'
+import { unlink, stat } from 'fs/promises'
 import { Readable } from 'stream'
 import path from 'path'
-import { photoPath, thumbPath, generateThumb, getImageSize, parseExif, ensureDirs } from '@/lib/photos'
+import { photoPath, thumbPath, generateThumb, compressToWebP, parseExif, ensureDirs } from '@/lib/photos'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -38,22 +38,26 @@ export async function POST(req: NextRequest) {
       if (name === 'downloadable') batchDownloadable = val === '1' ? 1 : 0
     })
 
-    busboy.on('file', (_field, file, { filename, mimeType }) => {
+    busboy.on('file', (_field, file, { filename }) => {
       const id = crypto.randomUUID()
       const ext = path.extname(filename) || '.jpg'
-      const storedName = id + ext
-      const filePath = photoPath(storedName)
-      const ws = createWriteStream(filePath)
+      const tempName = id + ext
+      const tempPath = photoPath(tempName)
+      const ws = createWriteStream(tempPath)
       file.pipe(ws)
 
       filePromises.push(new Promise<void>((done) => {
         ws.on('close', async () => {
           try {
-            const [dims, exif, { size }] = await Promise.all([
-              getImageSize(filePath),
-              parseExif(filePath),
-              stat(filePath),
+            const [exif, { size: originalSize }] = await Promise.all([
+              parseExif(tempPath),
+              stat(tempPath),
             ])
+
+            const storedName = id + '.webp'
+            const filePath = photoPath(storedName)
+            const { width, height, size } = await compressToWebP(tempPath, filePath)
+            await unlink(tempPath)
 
             await generateThumb(filePath, thumbPath(storedName))
 
@@ -68,9 +72,10 @@ export async function POST(req: NextRequest) {
               filename: storedName,
               originalName: filename,
               size,
-              mimeType,
-              width: dims.width,
-              height: dims.height,
+              originalSize,
+              mimeType: 'image/webp',
+              width,
+              height,
               exifData: JSON.stringify(exif),
               title: batchTitle ?? path.parse(filename).name.replace(/[-_]/g, ' ').trim(),
               album: batchTags[0] ?? null,

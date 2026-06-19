@@ -255,6 +255,7 @@ export default async function SearchPage({
                         cam={cam}
                         fl={fl}
                         size={photo.size}
+                        originalSize={photo.originalSize}
                         aspectRatio={ar}
                         timeLabel={timeLabel}
                         tags={activeTags}
