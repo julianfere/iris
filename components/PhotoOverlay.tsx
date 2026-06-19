@@ -88,7 +88,7 @@ export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props)
       <button
         onClick={close}
         style={{
-          position: 'absolute', top: 16, right: 16, zIndex: 10,
+          position: 'absolute', top: 'calc(16px + env(safe-area-inset-top))', right: 16, zIndex: 10,
           width: 36, height: 36, borderRadius: '50%',
           background: 'rgba(0,0,0,.5)', border: '1px solid rgba(255,255,255,.15)',
           color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -141,8 +141,8 @@ export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props)
 
       {/* Content: image + sidebar */}
       <div
-        className="photo-split"
-        style={{ flex: 1, overflow: 'hidden' }}
+        className="photo-split photo-split--overlay"
+        style={{ flex: 1 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >

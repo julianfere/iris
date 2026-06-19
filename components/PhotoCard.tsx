@@ -48,7 +48,7 @@ export default function PhotoCard({
       <div className="mobile-badge">● ORIGINAL · {formatBytes(originalSize ?? size)}</div>
       <div className="mobile-meta">
         <Link
-          href={`/global/search?userId=${userId ?? ''}`}
+          href={userId ? `/profile?userId=${userId}` : '/global/search'}
           className="m-av"
           style={{ background: avatarColor ?? 'var(--s2)' }}
           onClick={e => e.stopPropagation()}

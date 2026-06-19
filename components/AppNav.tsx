@@ -19,12 +19,21 @@ const IconProfile = () => (
     <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>
   </svg>
 )
+const IconPeople = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="7" r="3.5"/>
+    <path d="M2 21c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5"/>
+    <circle cx="17.5" cy="8" r="2.5"/>
+    <path d="M22 21c0-2.5-2.2-4-4.5-4"/>
+  </svg>
+)
 
 export default function AppNav() {
   const path = usePathname()
 
   const isFeed    = path === '/global'
   const isSearch  = path.includes('/search')
+  const isMembers = path.includes('/members')
   const isProfile = path.includes('/profile')
 
   return (
@@ -36,6 +45,9 @@ export default function AppNav() {
         </Link>
         <Link href="/global/search" className={`nav-btn${isSearch ? ' active' : ''}`}>
           <IconSearch /><span>Buscar</span>
+        </Link>
+        <Link href="/global/members" className={`nav-btn${isMembers ? ' active' : ''}`}>
+          <IconPeople /><span>Personas</span>
         </Link>
         <Link href="/profile" className={`nav-btn${isProfile ? ' active' : ''}`}>
           <IconProfile /><span>Perfil</span>
@@ -49,6 +61,9 @@ export default function AppNav() {
         </Link>
         <Link href="/global/search" className={`desktop-nav-btn${isSearch ? ' active' : ''}`}>
           Buscar
+        </Link>
+        <Link href="/global/members" className={`desktop-nav-btn${isMembers ? ' active' : ''}`}>
+          Personas
         </Link>
         <Link href="/profile" className={`desktop-nav-btn${isProfile ? ' active' : ''}`}>
           Perfil

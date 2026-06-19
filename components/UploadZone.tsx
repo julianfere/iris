@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatBytes } from '@/lib/utils'
 
 type Props = {
   existingTags?: string[]
@@ -11,16 +12,21 @@ type Props = {
 
 export default function UploadZone({ existingTags = [], onSuccess, compact }: Props) {
   const router = useRouter()
-  const [files, setFiles]           = useState<File[]>([])
+  const [files, setFiles]               = useState<File[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [tagInput, setTagInput]     = useState('')
-  const [title, setTitle]           = useState('')
+  const [tagInput, setTagInput]         = useState('')
+  const [title, setTitle]               = useState('')
   const [downloadable, setDownloadable] = useState(true)
-  const [status, setStatus]         = useState<'idle'|'uploading'|'done'|'error'>('idle')
-  const [progress, setProgress]     = useState('')
-  const [dragging, setDragging]     = useState(false)
+  const [status, setStatus]             = useState<'idle'|'uploading'|'done'|'error'>('idle')
+  const [progress, setProgress]         = useState('')
+  const [uploadedBytes, setUploadedBytes] = useState(0)
+  const [totalBytes, setTotalBytes]       = useState(0)
+  const [dragging, setDragging]         = useState(false)
   const inputRef    = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
+
+  const pct = totalBytes > 0 ? Math.min((uploadedBytes / totalBytes) * 100, 100) : 0
+  const isProcessing = status === 'uploading' && pct >= 100
 
   const suggestions = tagInput.trim()
     ? existingTags.filter(t => !selectedTags.includes(t) && t.includes(tagInput.toLowerCase().trim()))
@@ -69,10 +75,13 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
     if (dropped.length) { setFiles(dropped); setStatus('idle') }
   }, [])
 
-  async function upload() {
+  function upload() {
     if (!files.length) return
+    const total = files.reduce((s, f) => s + f.size, 0)
     setStatus('uploading')
-    setProgress(`Subiendo ${files.length} foto${files.length !== 1 ? 's' : ''}…`)
+    setProgress('')
+    setUploadedBytes(0)
+    setTotalBytes(total)
 
     const form = new FormData()
     files.forEach(f => form.append('file', f))
@@ -80,20 +89,36 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
     if (title.trim()) form.append('title', title.trim())
     form.append('downloadable', downloadable ? '1' : '0')
 
-    const res = await fetch('/api/photos/upload', { method: 'POST', body: form })
+    const xhr = new XMLHttpRequest()
 
-    if (res.ok) {
-      const data = await res.json()
-      setStatus('done')
-      setProgress(`✓ ${data.count} foto${data.count !== 1 ? 's' : ''} subida${data.count !== 1 ? 's' : ''}`)
-      router.refresh()
-      if (onSuccess) setTimeout(onSuccess, 900)
-      else setTimeout(() => router.push('/global'), 1200)
-    } else {
+    xhr.upload.addEventListener('progress', e => {
+      if (e.lengthComputable) setUploadedBytes(e.loaded)
+    })
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const data = JSON.parse(xhr.responseText)
+        setStatus('done')
+        setProgress(`✓ ${data.count} foto${data.count !== 1 ? 's' : ''} subida${data.count !== 1 ? 's' : ''}`)
+        router.refresh()
+        if (onSuccess) setTimeout(onSuccess, 900)
+        else setTimeout(() => router.push('/global'), 1200)
+      } else {
+        setStatus('error')
+        setProgress('Error al subir. Intentá de nuevo.')
+      }
+    })
+
+    xhr.addEventListener('error', () => {
       setStatus('error')
       setProgress('Error al subir. Intentá de nuevo.')
-    }
+    })
+
+    xhr.open('POST', '/api/photos/upload')
+    xhr.send(form)
   }
+
+  const totalSize = files.reduce((s, f) => s + f.size, 0)
 
   return (
     <div
@@ -252,23 +277,69 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
           {dragging
             ? 'Soltá para agregar'
             : files.length
-              ? `${files.length} foto${files.length !== 1 ? 's' : ''} elegida${files.length !== 1 ? 's' : ''}`
+              ? `${files.length} foto${files.length !== 1 ? 's' : ''} · ${formatBytes(totalSize)}`
               : 'Arrastrá tus fotos o tocá para elegir'}
         </div>
         <div className="dropzone-sub">JPEG · HEIC · PNG · WebP</div>
       </label>
 
-      {files.length > 0 && status !== 'done' && (
+      {/* Upload button */}
+      {files.length > 0 && status !== 'done' && status !== 'uploading' && (
         <button
           className="btn-primary"
           style={{ marginTop: 16 }}
           onClick={upload}
-          disabled={status === 'uploading'}
         >
-          {status === 'uploading' ? progress : `Subir ${files.length} foto${files.length !== 1 ? 's' : ''}`}
+          {`Subir ${files.length} foto${files.length !== 1 ? 's' : ''}`}
         </button>
       )}
 
+      {/* Progress indicator */}
+      {status === 'uploading' && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+            <span style={{ fontSize: 13, color: 'var(--txt)' }}>
+              {isProcessing
+                ? `Procesando ${files.length} foto${files.length !== 1 ? 's' : ''}…`
+                : `Subiendo ${files.length} foto${files.length !== 1 ? 's' : ''}…`}
+            </span>
+            {!isProcessing && (
+              <span style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--dim)' }}>
+                {Math.round(pct)}%
+              </span>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ height: 4, borderRadius: 2, background: 'var(--s2)', overflow: 'hidden' }}>
+            {isProcessing ? (
+              <div style={{
+                height: '100%', width: '100%', borderRadius: 2,
+                background: `linear-gradient(90deg, var(--ac) 25%, color-mix(in srgb,var(--ac) 45%,transparent) 50%, var(--ac) 75%)`,
+                backgroundSize: '200% 100%',
+                animation: 'progress-sweep 1.4s linear infinite',
+              }} />
+            ) : (
+              <div style={{
+                height: '100%',
+                width: `${pct}%`,
+                background: 'var(--ac)',
+                borderRadius: 2,
+                transition: pct > 0 ? 'width .25s ease' : 'none',
+              }} />
+            )}
+          </div>
+
+          {/* Bytes counter */}
+          {!isProcessing && (
+            <div style={{ fontSize: 11.5, fontFamily: 'var(--mono)', color: 'var(--dim)', marginTop: 6 }}>
+              {formatBytes(uploadedBytes)} / {formatBytes(totalBytes)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Success / error message */}
       {progress && status !== 'uploading' && (
         <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: status === 'done' ? 'var(--ac)' : '#f87171', marginTop: 14 }}>
           {progress}
