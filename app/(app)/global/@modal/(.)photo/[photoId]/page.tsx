@@ -49,7 +49,9 @@ export default async function PhotoModal({ params }: { params: Promise<{ photoId
   const hasGps = typeof exif.GPSLatitude === 'number' && typeof exif.GPSLongitude === 'number'
 
   return (
-    <PhotoOverlay
+    <>
+      <style>{`@media (max-width: 767px) { .photo-sidebar { padding-left: 22px; padding-right: 22px; } }`}</style>
+      <PhotoOverlay
       photoId={photoId}
       title={photo.title ?? null}
       album={photo.album ?? null}
@@ -81,5 +83,6 @@ export default async function PhotoModal({ params }: { params: Promise<{ photoId
       prevId={prevPhoto?.id ?? null}
       nextId={nextPhoto?.id ?? null}
     />
+    </>
   )
 }

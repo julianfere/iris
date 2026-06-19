@@ -59,6 +59,7 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
 
   return (
     <aside className="photo-sidebar">
+      <style>{`@media (max-width: 767px) { .photo-sidebar { padding-left: 22px; padding-right: 22px; } }`}</style>
       {/* Author row */}
       <div className="author-row">
         <Link href={`/profile?userId=${p.userId}`} className="author-av" style={{ background: p.userAvatarColor, color: '#fff' }}>

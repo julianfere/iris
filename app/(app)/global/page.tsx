@@ -10,6 +10,7 @@ import VisitTracker from '@/components/VisitTracker'
 import FeedFAB from '@/components/FeedFAB'
 import PhotoCard from '@/components/PhotoCard'
 import HeaderProfileChip from '@/components/HeaderProfileChip'
+import PullToRefresh from '@/components/PullToRefresh'
 
 export default async function FeedPage() {
   const session = await auth()
@@ -67,6 +68,7 @@ export default async function FeedPage() {
       </header>
 
       <main style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}>
+        <PullToRefresh>
         <div className="feed-wrap">
 
           {rows.length === 0 && (
@@ -112,6 +114,7 @@ export default async function FeedPage() {
             </div>
           ))}
         </div>
+        </PullToRefresh>
       </main>
       <FeedFAB existingTags={existingTags} />
     </>

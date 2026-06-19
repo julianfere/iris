@@ -38,6 +38,7 @@ export default async function PhotoPage({ params }: { params: Promise<{ photoId:
 
   return (
     <>
+      <style>{`@media (max-width: 767px) { .photo-sidebar { padding-left: 22px; padding-right: 22px; } }`}</style>
       <header className="app-header">
         <div className="logo-sq" />
         <span style={{ flex: 1, fontSize: 15, fontWeight: 600, letterSpacing: '-.02em' }}>Iris</span>

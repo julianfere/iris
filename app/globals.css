@@ -34,6 +34,7 @@ body {
 @keyframes cr-fade  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 @keyframes cr-slide { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:none; } }
 @keyframes sheet-up { from { transform:translateY(100%); } to { transform:none; } }
+@keyframes ptr-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 
 /* ── Shared form controls ── */
 .form-label {
@@ -229,6 +230,10 @@ body {
 .feed-wrap { max-width: 1320px; margin: 0 auto; padding: 30px 22px 80px; }
 @media (max-width: 767px) { .feed-wrap { padding: 6px 0 0; } }
 
+/* Wrapper for search controls (form, personas, tags) — adds horizontal breathing room on mobile */
+.search-content { }
+@media (max-width: 767px) { .search-content { padding: 0 18px; } }
+
 .feed-hero {
   display: flex;
   align-items: flex-end;
@@ -366,7 +371,7 @@ body {
   padding: 60px 26px 60px; overflow-y: auto;
 }
 @media (max-width: 767px) {
-  .photo-sidebar { max-width: none; border-left: none; padding: 20px 18px calc(40px + env(safe-area-inset-bottom)); }
+  .photo-sidebar { max-width: none; border-left: none; padding: 20px 22px calc(40px + env(safe-area-inset-bottom)); }
 }
 
 .author-row { display: flex; align-items: center; gap: 11px; }
