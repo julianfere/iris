@@ -42,8 +42,8 @@ export async function compressToWebP(srcPath: string, destPath: string): Promise
 export async function generateThumb(srcPath: string, destPath: string): Promise<void> {
   const { default: sharp } = await import('sharp')
   await sharp(srcPath)
-    .resize(900, 900, { fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: 82 })
+    .resize(1400, 1400, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 90, effort: 6 })
     .toFile(destPath)
 }
 
