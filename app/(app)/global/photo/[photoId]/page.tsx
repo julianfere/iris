@@ -64,6 +64,7 @@ export default async function PhotoPage({ params }: { params: Promise<{ photoId:
           title={photo.title ?? null}
           album={photo.album ?? null}
           size={photo.size}
+          originalSize={photo.originalSize}
           mimeType={photo.mimeType}
           originalName={photo.originalName}
           userId={photo.userId}
