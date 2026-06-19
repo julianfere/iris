@@ -5,11 +5,13 @@ import Link from 'next/link'
 import { initials, formatBytes } from '@/lib/utils'
 import FavoriteButton from '@/components/FavoriteButton'
 import DeletePhotoButton from '@/components/DeletePhotoButton'
+import EditPhotoSheet from '@/components/EditPhotoSheet'
 
 export type PhotoSidebarProps = {
   photoId: string
   title: string | null
   album: string | null
+  tags: string[]
   size: number
   originalSize?: number | null
   mimeType: string
@@ -41,6 +43,7 @@ export type PhotoSidebarProps = {
 
 export default function PhotoSidebar(p: PhotoSidebarProps) {
   const [exifOpen, setExifOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const exifRows = [
     ['Cámara',                p.cam],
@@ -70,8 +73,34 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
         <FavoriteButton photoId={p.photoId} initialFav={p.isFav} initialCount={p.favCount} />
       </div>
 
-      <h1 className="photo-ttl">{p.title}</h1>
-      {p.album && <div className="photo-album">{p.album}</div>}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 className="photo-ttl">{p.title}</h1>
+          {p.tags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+              {p.tags.map(t => (
+                <Link key={t} href={`/global/search?tag=${encodeURIComponent(t)}`} className="tag-chip">{t}</Link>
+              ))}
+            </div>
+          )}
+        </div>
+        {p.isOwn && (
+          <button
+            onClick={() => setEditOpen(true)}
+            title="Editar publicación"
+            style={{
+              background: 'none', border: '1px solid var(--border)', borderRadius: 8,
+              padding: '6px 10px', cursor: 'pointer', color: 'var(--dim)',
+              display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, flexShrink: 0,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9.5 1.5l2 2L4 11H2v-2L9.5 1.5z" />
+            </svg>
+            Editar
+          </button>
+        )}
+      </div>
 
       {/* Spec strip */}
       <div className="spec-strip">
@@ -155,6 +184,16 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
             </>
           )}
         </>
+      )}
+
+      {editOpen && (
+        <EditPhotoSheet
+          photoId={p.photoId}
+          initialTitle={p.title}
+          initialTags={p.tags}
+          initialDownloadable={p.downloadable}
+          onClose={() => setEditOpen(false)}
+        />
       )}
     </aside>
   )

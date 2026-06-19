@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { photos, users, favorites } from '@/lib/schema'
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql, desc } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { initials } from '@/lib/utils'
@@ -19,7 +19,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const user = db.select().from(users).where(eq(users.id, targetId)).get()
   if (!user) redirect('/global')
 
-  const userPhotos = db.select().from(photos).where(eq(photos.userId, targetId)).all()
+  const userPhotos = db.select().from(photos).where(eq(photos.userId, targetId)).orderBy(desc(photos.createdAt)).all()
   const cameraSet = new Set(
     userPhotos
       .map(p => { const e = p.exifData ? JSON.parse(p.exifData) : {}; return [e.Make, e.Model].filter(Boolean).join(' ') })

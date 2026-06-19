@@ -17,6 +17,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const photo = db.select().from(photos).where(eq(photos.id, id)).get()
   if (!photo) return new NextResponse('Not found', { status: 404 })
 
+  const isOwner = photo.userId === session.user.id
+  if (!isOwner && photo.downloadable === 0) return new NextResponse('Forbidden', { status: 403 })
+
   const filePath = photoPath(photo.filename)
   if (!existsSync(filePath)) return new NextResponse('File not found', { status: 404 })
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import PhotoSidebar, { type PhotoSidebarProps } from '@/components/PhotoSidebar'
+import ZoomableImage from '@/components/ZoomableImage'
 
 type Props = PhotoSidebarProps & {
   prevId: string | null
@@ -147,12 +148,10 @@ export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props)
       >
         {/* Image panel */}
         <div className="photo-img-panel" style={{ background: 'transparent' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <ZoomableImage
             src={`/api/photos/${photoId}/thumb`}
             alt={sidebarProps.title ?? ''}
             className="photo-main"
-            loading="eager"
           />
         </div>
 

@@ -1,11 +1,12 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { photos, users, favorites } from '@/lib/schema'
+import { photos, users, favorites, photoTags, tags } from '@/lib/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { formatExposure, relativeDate } from '@/lib/utils'
 import PhotoSidebar from '@/components/PhotoSidebar'
+import ZoomableImage from '@/components/ZoomableImage'
 
 export default async function PhotoPage({ params }: { params: Promise<{ photoId: string }> }) {
   const { photoId } = await params
@@ -19,6 +20,8 @@ export default async function PhotoPage({ params }: { params: Promise<{ photoId:
 
   const favCount = db.select({ c: sql<number>`COUNT(*)` }).from(favorites).where(eq(favorites.photoId, photoId)).get()?.c ?? 0
   const isFav    = !!db.select({ u: favorites.userId }).from(favorites).where(and(eq(favorites.userId, session.user.id), eq(favorites.photoId, photoId))).get()
+  const photoTagRows = db.select({ name: tags.name }).from(photoTags).innerJoin(tags, eq(photoTags.tagId, tags.id)).where(eq(photoTags.photoId, photoId)).all()
+  const photoTagNames = photoTagRows.map(r => r.name)
 
   const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
   const cam  = [exif.Make, exif.Model].filter(Boolean).join(' ') || '—'
@@ -46,23 +49,22 @@ export default async function PhotoPage({ params }: { params: Promise<{ photoId:
 
       <div className="photo-split">
         <div className="photo-img-panel">
+          <ZoomableImage
+            src={`/api/photos/${photo.id}/thumb`}
+            alt={photo.title ?? ''}
+            className="photo-main"
+          />
           <Link href="/global" className="btn-back">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 3L4.5 7l4 4" /></svg>
             <span className="back-txt">Volver</span>
           </Link>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/photos/${photo.id}/thumb`}
-            alt={photo.title ?? ''}
-            className="photo-main"
-            loading="eager"
-          />
         </div>
 
         <PhotoSidebar
           photoId={photoId}
           title={photo.title ?? null}
           album={photo.album ?? null}
+          tags={photoTagNames}
           size={photo.size}
           originalSize={photo.originalSize}
           mimeType={photo.mimeType}

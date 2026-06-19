@@ -14,7 +14,12 @@ export const authConfig = {
       const isPublic = publicPaths.some(p => pathname.startsWith(p))
       const isStatic  = pathname.startsWith('/_next') || pathname.startsWith('/icons') || pathname === '/manifest.json' || pathname === '/sw.js' || pathname === '/favicon.ico'
 
-      if (isStatic || isPublic) return true
+      if (isStatic) return true
+      // Redirect logged-in users away from auth pages (prevents session hijack via shared browser)
+      if (isPublic && isLoggedIn && (pathname === '/login' || pathname.startsWith('/join'))) {
+        return Response.redirect(new URL('/global', nextUrl))
+      }
+      if (isPublic) return true
       if (!isLoggedIn) return Response.redirect(new URL('/login', nextUrl))
       return true
     },

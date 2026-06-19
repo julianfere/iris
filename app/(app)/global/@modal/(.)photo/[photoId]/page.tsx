@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { photos, users, favorites } from '@/lib/schema'
+import { photos, users, favorites, photoTags, tags } from '@/lib/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import { formatExposure, relativeDate } from '@/lib/utils'
@@ -18,6 +18,7 @@ export default async function PhotoModal({ params }: { params: Promise<{ photoId
 
   const favCount = db.select({ c: sql<number>`COUNT(*)` }).from(favorites).where(eq(favorites.photoId, photoId)).get()?.c ?? 0
   const isFav    = !!db.select({ u: favorites.userId }).from(favorites).where(and(eq(favorites.userId, session.user.id), eq(favorites.photoId, photoId))).get()
+  const photoTagNames = db.select({ name: tags.name }).from(photoTags).innerJoin(tags, eq(photoTags.tagId, tags.id)).where(eq(photoTags.photoId, photoId)).all().map(r => r.name)
 
   const sortKey = photo.takenAt ?? photo.createdAt
   const prevPhoto = db.select({ id: photos.id })
@@ -52,6 +53,7 @@ export default async function PhotoModal({ params }: { params: Promise<{ photoId
       photoId={photoId}
       title={photo.title ?? null}
       album={photo.album ?? null}
+      tags={photoTagNames}
       size={photo.size}
       originalSize={photo.originalSize}
       mimeType={photo.mimeType}
