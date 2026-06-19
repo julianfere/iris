@@ -12,7 +12,7 @@ export const authConfig = {
 
       const publicPaths = ['/login', '/join', '/api/users', '/api/auth', '/api/health']
       const isPublic = publicPaths.some(p => pathname.startsWith(p))
-      const isStatic  = pathname.startsWith('/_next')
+      const isStatic  = pathname.startsWith('/_next') || pathname.startsWith('/icons') || pathname === '/manifest.json' || pathname === '/sw.js' || pathname === '/favicon.ico'
 
       if (isStatic || isPublic) return true
       if (!isLoggedIn) return Response.redirect(new URL('/login', nextUrl))
