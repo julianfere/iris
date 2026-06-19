@@ -64,19 +64,19 @@ sqlite.exec(`
 // Add bio column if missing (pre-existing installs)
 const userCols = sqlite.prepare("PRAGMA table_info(users)").all() as { name: string }[]
 if (!userCols.some(c => c.name === 'bio')) {
-  sqlite.exec('ALTER TABLE users ADD COLUMN bio TEXT')
+  try { sqlite.exec('ALTER TABLE users ADD COLUMN bio TEXT') } catch {}
 }
 
 // Add downloadable column if missing
 const photoColsInit = sqlite.prepare("PRAGMA table_info(photos)").all() as { name: string }[]
 if (!photoColsInit.some(c => c.name === 'downloadable')) {
-  sqlite.exec('ALTER TABLE photos ADD COLUMN downloadable INTEGER NOT NULL DEFAULT 1')
+  try { sqlite.exec('ALTER TABLE photos ADD COLUMN downloadable INTEGER NOT NULL DEFAULT 1') } catch {}
 }
 
 // Add original_size column if missing
 const photoColsInit2 = sqlite.prepare("PRAGMA table_info(photos)").all() as { name: string }[]
 if (!photoColsInit2.some(c => c.name === 'original_size')) {
-  sqlite.exec('ALTER TABLE photos ADD COLUMN original_size INTEGER')
+  try { sqlite.exec('ALTER TABLE photos ADD COLUMN original_size INTEGER') } catch {}
 }
 
 // Remove group_id from photos (pre-groups-removal installs)
