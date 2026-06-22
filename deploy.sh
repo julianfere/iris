@@ -13,7 +13,7 @@ timing(){ echo -e "${DIM}  ($1s)${NC}"; }
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$SCRIPT_DIR/carrete-app"
+APP_DIR="$SCRIPT_DIR"
 COMPOSE="docker compose -f $APP_DIR/docker-compose.yml"
 
 cd "$SCRIPT_DIR"
@@ -97,7 +97,7 @@ fi
 
 # ── Cleanup ──────────────────────────────────────────────────────────────────
 step "Cleaning up dangling images..."
-docker image prune -f --quiet
+docker image prune -f 2>/dev/null || true
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 CONTAINER_STATUS=$(docker ps --filter name=carrete --format '{{.Status}}' | head -1)
