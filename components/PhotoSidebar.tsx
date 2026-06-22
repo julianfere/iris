@@ -73,30 +73,32 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
           <div className="author-name">{p.userName}</div>
           <div className="author-when">{p.takenLabel} · {p.takenTime}</div>
         </div>
-        <FavoriteButton photoId={p.photoId} initialFav={p.isFav} initialCount={p.favCount} />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 className="photo-ttl">{p.title}</h1>
-          {p.tags.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
-              {p.tags.map(t => (
-                <Link key={t} href={`/global/search?tag=${encodeURIComponent(t)}`} className="tag-chip">{t}</Link>
-              ))}
-            </div>
-          )}
+      {/* Title + tags — full width */}
+      <h1 className="photo-ttl">{p.title}</h1>
+      {p.tags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+          {p.tags.map(t => (
+            <Link key={t} href={`/global/search?tag=${encodeURIComponent(t)}`} className="tag-chip">{t}</Link>
+          ))}
         </div>
+      )}
+
+      {/* Action bar */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 18, marginBottom: 4 }}>
+        <FavoriteButton photoId={p.photoId} initialFav={p.isFav} initialCount={p.favCount} />
         {p.isOwn && (
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <>
             <PhotoShareButton photoId={p.photoId} initialToken={p.shareToken} photoTitle={p.title} />
             <button
               onClick={() => setEditOpen(true)}
               title="Editar publicación"
               style={{
-                background: 'none', border: '1px solid var(--border)', borderRadius: 8,
-                padding: '6px 10px', cursor: 'pointer', color: 'var(--dim)',
-                display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, flexShrink: 0,
+                background: 'none', border: '1px solid var(--line)', borderRadius: 8,
+                padding: '7px 12px', cursor: 'pointer', color: 'var(--dim)',
+                display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
+                fontFamily: 'var(--font)', transition: 'color .15s',
               }}
             >
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -104,7 +106,7 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
               </svg>
               Editar
             </button>
-          </div>
+          </>
         )}
       </div>
 

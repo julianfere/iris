@@ -101,11 +101,11 @@ export default function PhotoShareButton({ photoId, initialToken, photoTitle }: 
         disabled={loading}
         title="Compartir foto"
         style={{
-          background: 'none', border: '1px solid var(--border)', borderRadius: 8,
-          padding: '6px 10px', cursor: loading ? 'wait' : 'pointer',
+          background: 'none', border: '1px solid var(--line)', borderRadius: 8,
+          padding: '7px 12px', cursor: loading ? 'wait' : 'pointer',
           color: token ? 'var(--ac)' : 'var(--dim)',
-          display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, flexShrink: 0,
-          transition: 'color .15s',
+          display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
+          fontFamily: 'var(--font)', transition: 'color .15s',
         }}
       >
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
