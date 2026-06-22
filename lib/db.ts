@@ -87,6 +87,13 @@ if (!photoColsInit2.some(c => c.name === 'original_size')) {
   try { sqlite.exec('ALTER TABLE photos ADD COLUMN original_size INTEGER') } catch {}
 }
 
+// Add share_token column if missing (SQLite forbids UNIQUE in ADD COLUMN — add index separately)
+const photoColsShare = sqlite.prepare("PRAGMA table_info(photos)").all() as { name: string }[]
+if (!photoColsShare.some(c => c.name === 'share_token')) {
+  sqlite.exec('ALTER TABLE photos ADD COLUMN share_token TEXT')
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS photos_share_token_idx ON photos(share_token) WHERE share_token IS NOT NULL')
+}
+
 // Remove group_id from photos (pre-groups-removal installs)
 const photoCols = sqlite.prepare("PRAGMA table_info(photos)").all() as { name: string }[]
 if (photoCols.some(c => c.name === 'group_id')) {

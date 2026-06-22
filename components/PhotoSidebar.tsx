@@ -6,6 +6,7 @@ import { initials, formatBytes } from '@/lib/utils'
 import FavoriteButton from '@/components/FavoriteButton'
 import DeletePhotoButton from '@/components/DeletePhotoButton'
 import EditPhotoSheet from '@/components/EditPhotoSheet'
+import PhotoShareButton from '@/components/PhotoShareButton'
 
 export type PhotoSidebarProps = {
   photoId: string
@@ -35,6 +36,7 @@ export type PhotoSidebarProps = {
   gpsLat: number | null
   gpsLon: number | null
   downloadable: boolean
+  shareToken: string | null
   // State
   isFav: boolean
   favCount: number
@@ -86,20 +88,23 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
           )}
         </div>
         {p.isOwn && (
-          <button
-            onClick={() => setEditOpen(true)}
-            title="Editar publicación"
-            style={{
-              background: 'none', border: '1px solid var(--border)', borderRadius: 8,
-              padding: '6px 10px', cursor: 'pointer', color: 'var(--dim)',
-              display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, flexShrink: 0,
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.5 1.5l2 2L4 11H2v-2L9.5 1.5z" />
-            </svg>
-            Editar
-          </button>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <PhotoShareButton photoId={p.photoId} initialToken={p.shareToken} photoTitle={p.title} />
+            <button
+              onClick={() => setEditOpen(true)}
+              title="Editar publicación"
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 8,
+                padding: '6px 10px', cursor: 'pointer', color: 'var(--dim)',
+                display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, flexShrink: 0,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.5 1.5l2 2L4 11H2v-2L9.5 1.5z" />
+              </svg>
+              Editar
+            </button>
+          </div>
         )}
       </div>
 

@@ -10,7 +10,7 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user
       const { pathname } = nextUrl
 
-      const publicPaths = ['/login', '/join', '/api/users', '/api/auth', '/api/health']
+      const publicPaths = ['/login', '/join', '/api/users', '/api/auth', '/api/health', '/s', '/api/share']
       const isPublic = publicPaths.some(p => pathname.startsWith(p))
       const isStatic  = pathname.startsWith('/_next') || pathname.startsWith('/icons') || pathname === '/manifest.json' || pathname === '/sw.js' || pathname === '/favicon.ico'
 
