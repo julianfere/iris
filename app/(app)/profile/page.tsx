@@ -99,7 +99,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 avatarColor={user.avatarColor}
                 hasAvatar={hasAvatar}
               />
-              <PushSubscribeButton />
+              <PushSubscribeButton vapidKey={process.env.VAPID_PUBLIC_KEY ?? ''} />
               <ProfileLogout />
             </div>
           )}

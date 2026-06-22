@@ -11,11 +11,12 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
 
 type Status = 'loading' | 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'
 
-export default function PushSubscribeButton() {
+export default function PushSubscribeButton({ vapidKey }: { vapidKey: string }) {
   const [status, setStatus] = useState<Status>('loading')
+  const [working, setWorking] = useState(false)
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!vapidKey || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       setStatus('unsupported'); return
     }
     if (Notification.permission === 'denied') {
@@ -26,21 +27,20 @@ export default function PushSubscribeButton() {
         setStatus(sub ? 'subscribed' : 'unsubscribed')
       )
     )
-  }, [])
+  }, [vapidKey])
 
   async function subscribe() {
-    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-    if (!vapidKey) return
     const reg = await navigator.serviceWorker.ready
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey) as unknown as BufferSource,
     })
-    await fetch('/api/push/subscribe', {
+    const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sub.toJSON()),
     })
+    if (!res.ok) throw new Error('Error guardando suscripción')
     setStatus('subscribed')
   }
 
@@ -59,14 +59,22 @@ export default function PushSubscribeButton() {
   }
 
   async function handleClick() {
-    if (status === 'unsubscribed') {
-      if (Notification.permission === 'default') {
-        const perm = await Notification.requestPermission()
-        if (perm !== 'granted') { setStatus('denied'); return }
+    if (working) return
+    setWorking(true)
+    try {
+      if (status === 'unsubscribed') {
+        if (Notification.permission === 'default') {
+          const perm = await Notification.requestPermission()
+          if (perm !== 'granted') { setStatus('denied'); return }
+        }
+        await subscribe()
+      } else if (status === 'subscribed') {
+        await unsubscribe()
       }
-      await subscribe()
-    } else if (status === 'subscribed') {
-      await unsubscribe()
+    } catch (err) {
+      console.error('[push]', err)
+    } finally {
+      setWorking(false)
     }
   }
 
@@ -82,11 +90,12 @@ export default function PushSubscribeButton() {
   return (
     <button
       onClick={handleClick}
+      disabled={working}
       style={{
         background: 'none',
         border: `1px solid ${active ? 'var(--ac)' : 'var(--line)'}`,
         color: active ? 'var(--ac)' : 'var(--dim)',
-        cursor: 'pointer',
+        cursor: working ? 'wait' : 'pointer',
         fontFamily: 'var(--font)',
         fontSize: 13,
         padding: '8px 14px',
@@ -95,6 +104,7 @@ export default function PushSubscribeButton() {
         alignItems: 'center',
         gap: 7,
         flexShrink: 0,
+        opacity: working ? 0.6 : 1,
       }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
