@@ -3,12 +3,17 @@ import { db } from '@/lib/db'
 import { photos, users } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
+import { headers } from 'next/headers'
 
 type Props = { params: Promise<{ token: string }> }
 
-function absoluteUrl(path: string): string {
-  const base = (process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? '').replace(/\/$/, '')
-  return base ? `${base}${path}` : path
+async function absoluteUrl(path: string): Promise<string> {
+  const configured = (process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? '').replace(/\/$/, '')
+  if (configured && !configured.includes('localhost')) return `${configured}${path}`
+  const h = await headers()
+  const host = h.get('host') ?? 'localhost:3000'
+  const proto = h.get('x-forwarded-proto') ?? 'http'
+  return `${proto}://${host}${path}`
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -25,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { photo, userName } = row
   const title = photo.title ?? 'Foto sin título'
   const description = userName ? `Foto de ${userName} en Iris` : 'Compartido desde Iris'
-  const imageUrl = absoluteUrl(`/api/share/${token}/image`)
+  const imageUrl = await absoluteUrl(`/api/share/${token}/image`)
 
   return {
     title: `${title} · Iris`,
