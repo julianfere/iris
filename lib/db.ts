@@ -57,6 +57,14 @@ sqlite.exec(`
     tag_id   TEXT NOT NULL REFERENCES tags(id)   ON DELETE CASCADE,
     PRIMARY KEY (photo_id, tag_id)
   );
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint    TEXT NOT NULL UNIQUE,
+    p256dh      TEXT NOT NULL,
+    auth        TEXT NOT NULL,
+    created_at  INTEGER NOT NULL
+  );
 `)
 
 // Runtime migrations — safe to run multiple times

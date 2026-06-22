@@ -9,6 +9,7 @@ import { unlink, stat } from 'fs/promises'
 import { Readable } from 'stream'
 import path from 'path'
 import { photoPath, thumbPath, generateThumb, compressToWebP, parseExif, ensureDirs } from '@/lib/photos'
+import { sendPushToAll } from '@/lib/push'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -105,6 +106,15 @@ export async function POST(req: NextRequest) {
 
     busboy.on('finish', async () => {
       await Promise.all(filePromises)
+
+      if (uploadedIds.length > 0) {
+        const userName = session.user?.name ?? 'Alguien'
+        const title = uploadedIds.length === 1
+          ? `Nueva foto de ${userName}`
+          : `${uploadedIds.length} fotos nuevas de ${userName}`
+        sendPushToAll({ title, url: '/global' }, session.user!.id!).catch(() => {})
+      }
+
       resolve(NextResponse.json({ ids: uploadedIds, count: uploadedIds.length }))
     })
 

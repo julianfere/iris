@@ -43,3 +43,12 @@ export const photoTags = sqliteTable('photo_tags', {
   photoId: text('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
   tagId:   text('tag_id').notNull().references(() => tags.id,     { onDelete: 'cascade' }),
 }, (t) => [primaryKey({ columns: [t.photoId, t.tagId] })])
+
+export const pushSubscriptions = sqliteTable('push_subscriptions', {
+  id:        text('id').primaryKey(),
+  userId:    text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  endpoint:  text('endpoint').notNull().unique(),
+  p256dh:    text('p256dh').notNull(),
+  auth:      text('auth').notNull(),
+  createdAt: integer('created_at').notNull(),
+})

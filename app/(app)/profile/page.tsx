@@ -4,11 +4,12 @@ import { photos, users, favorites } from '@/lib/schema'
 import { eq, sql, desc } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { initials } from '@/lib/utils'
+import { initials, normalizeCameraName } from '@/lib/utils'
 import { existsSync } from 'fs'
 import { avatarPath } from '@/lib/photos'
 import ProfileLogout from './ProfileLogout'
 import ProfileEditor from './ProfileEditor'
+import PushSubscribeButton from '@/components/PushSubscribeButton'
 
 type CameraEntry = { label: string; count: number; sampleIds: string[] }
 
@@ -28,8 +29,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const cameraMap = new Map<string, CameraEntry>()
   for (const p of userPhotos) {
     const e = p.exifData ? JSON.parse(p.exifData) : {}
-    const label = [e.Make, e.Model].filter(Boolean).join(' ')
-    if (!label) continue
+    const label = normalizeCameraName(e.Make, e.Model)
+    if (label === '—') continue
     const entry = cameraMap.get(label)
     if (!entry) cameraMap.set(label, { label, count: 1, sampleIds: [p.id] })
     else { entry.count++; if (entry.sampleIds.length < 4) entry.sampleIds.push(p.id) }
@@ -90,7 +91,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
 
           {/* Owner actions */}
           {isMe && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <ProfileEditor
                 userId={user.id}
                 name={user.name}
@@ -98,6 +99,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 avatarColor={user.avatarColor}
                 hasAvatar={hasAvatar}
               />
+              <PushSubscribeButton />
               <ProfileLogout />
             </div>
           )}

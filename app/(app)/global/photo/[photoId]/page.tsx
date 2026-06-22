@@ -4,7 +4,7 @@ import { photos, users, favorites, photoTags, tags } from '@/lib/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { formatExposure, relativeDate } from '@/lib/utils'
+import { formatExposure, relativeDate, normalizeCameraName } from '@/lib/utils'
 import PhotoSidebar from '@/components/PhotoSidebar'
 import ZoomableImage from '@/components/ZoomableImage'
 
@@ -24,7 +24,7 @@ export default async function PhotoPage({ params }: { params: Promise<{ photoId:
   const photoTagNames = photoTagRows.map(r => r.name)
 
   const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
-  const cam  = [exif.Make, exif.Model].filter(Boolean).join(' ') || '—'
+  const cam  = normalizeCameraName(exif.Make, exif.Model)
   const lens = exif.LensModel ?? '—'
   const ap   = exif.FNumber ? `f/${exif.FNumber}` : '—'
   const sh   = exif.ExposureTime ? formatExposure(exif.ExposureTime) : '—'

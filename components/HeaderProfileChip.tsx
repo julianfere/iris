@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import { initials } from '@/lib/utils'
 
 type Props = {
@@ -9,6 +10,13 @@ type Props = {
 }
 
 export default function HeaderProfileChip({ userId, name, avatarColor }: Props) {
+  const [loaded, setLoaded] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true)
+  }, [])
+
   return (
     <a
       href="/profile"
@@ -31,13 +39,13 @@ export default function HeaderProfileChip({ userId, name, avatarColor }: Props) 
       }}>
         {initials(name)}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          ref={imgRef}
           src={`/api/users/${userId}/avatar`}
           alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'none' }}
-          onLoad={(e) => { (e.target as HTMLImageElement).style.display = 'block' }}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: loaded ? 'block' : 'none' }}
+          onLoad={() => setLoaded(true)}
+          onError={() => {}}
         />
       </div>
       <span className="chip-name" style={{ fontSize: 13, fontWeight: 500, color: 'var(--txt)', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

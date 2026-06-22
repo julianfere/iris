@@ -32,7 +32,7 @@ export default async function MembersPage() {
         <span style={{ flex: 1, fontSize: 15, fontWeight: 600, letterSpacing: '-.02em' }}>Personas</span>
       </header>
 
-      <div style={{ maxWidth: 540, margin: '0 auto', padding: '32px 20px 80px' }}>
+      <div style={{ maxWidth: 540, margin: '0 auto', padding: '32px 20px 80px', minHeight: 'calc(100dvh - 60px)' }}>
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.14em', color: 'var(--dim)', marginBottom: 6 }}>En el carrete</div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{allUsers.length} persona{allUsers.length !== 1 ? 's' : ''}</h1>

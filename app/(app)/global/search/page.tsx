@@ -6,6 +6,7 @@ import { photos, users, tags, photoTags } from '@/lib/schema'
 import { eq, and, desc, sql, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { normalizeCameraName } from '@/lib/utils'
 import PhotoCard from '@/components/PhotoCard'
 import UserAvatar from '@/components/UserAvatar'
 import HeaderProfileChip from '@/components/HeaderProfileChip'
@@ -251,7 +252,7 @@ export default async function SearchPage({
                 <div className="masonry">
                   {results.map(({ photo, user }) => {
                     const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
-                    const cam  = [exif.Make, exif.Model].filter(Boolean).join(' ') || '—'
+                    const cam  = normalizeCameraName(exif.Make, exif.Model)
                     const fl   = exif.FocalLength ? `${exif.FocalLength} mm` : ''
                     const ar   = photo.width && photo.height ? photo.width / photo.height : 3/2
                     const timeLabel = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })

@@ -22,6 +22,7 @@ body {
   color: var(--txt);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
 }
 
 /* ── Scrollbar ── */

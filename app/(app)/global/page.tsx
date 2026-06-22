@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { photos, users, tags, photoTags } from '@/lib/schema'
 import { eq, desc, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
-import { relativeDate } from '@/lib/utils'
+import { relativeDate, normalizeCameraName } from '@/lib/utils'
 import VisitTracker from '@/components/VisitTracker'
 import FeedFAB from '@/components/FeedFAB'
 import PhotoCard from '@/components/PhotoCard'
@@ -88,7 +88,7 @@ export default async function FeedPage() {
               <div className="masonry">
                 {dateRows.map(({ photo, user }) => {
                   const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
-                  const cam  = [exif.Make, exif.Model].filter(Boolean).join(' ') || '—'
+                  const cam  = normalizeCameraName(exif.Make, exif.Model)
                   const fl   = exif.FocalLength ? `${exif.FocalLength} mm` : ''
                   const ar   = photo.width && photo.height ? photo.width / photo.height : 3/2
                   const timeLabel = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })

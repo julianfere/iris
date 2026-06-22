@@ -52,3 +52,29 @@ async function staleWhileRevalidate(cacheName, request) {
   })
   return cached ?? fetchPromise
 }
+
+self.addEventListener('push', event => {
+  let data = {}
+  try { data = event.data?.json() ?? {} } catch { data = { title: event.data?.text() ?? 'Iris' } }
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? 'Iris', {
+      body: data.body ?? '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url ?? '/global' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  const target = event.notification.data?.url ?? '/global'
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) {
+        if (c.url.includes(self.location.origin)) return c.focus()
+      }
+      return clients.openWindow(target)
+    })
+  )
+})

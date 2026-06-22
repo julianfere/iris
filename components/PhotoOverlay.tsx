@@ -16,6 +16,7 @@ let overlayOpen = false
 export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props) {
   const router = useRouter()
   const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
   const animateIn = !overlayOpen
 
   const { photoId } = sidebarProps
@@ -62,13 +63,16 @@ export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props)
 
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
   }
 
   function onTouchEnd(e: React.TouchEvent) {
-    if (touchStartX.current === null) return
+    if (touchStartX.current === null || touchStartY.current === null) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
     touchStartX.current = null
-    if (Math.abs(dx) < 40) return
+    touchStartY.current = null
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
     if (dx < 0 && nextId) goTo(nextId)  // swipe left → next (older)
     if (dx > 0 && prevId) goTo(prevId)  // swipe right → prev (newer)
   }
@@ -83,6 +87,8 @@ export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props)
         animation: animateIn ? 'cr-fade .15s ease both' : undefined,
       }}
       onClick={e => { if (e.target === e.currentTarget) close() }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {/* Close button */}
       <button
@@ -143,8 +149,6 @@ export default function PhotoOverlay({ prevId, nextId, ...sidebarProps }: Props)
       <div
         className="photo-split photo-split--overlay"
         style={{ flex: 1 }}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
       >
         {/* Image panel */}
         <div className="photo-img-panel" style={{ background: 'transparent' }}>

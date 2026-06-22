@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const filePath = avatarPath(id)
 
-  if (!existsSync(filePath)) return new NextResponse('Not found', { status: 404 })
+  if (!existsSync(filePath)) return new NextResponse('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } })
 
   const webStream = Readable.toWeb(createReadStream(filePath)) as ReadableStream
 
