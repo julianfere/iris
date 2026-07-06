@@ -5,16 +5,30 @@ import { eq, and, sql } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { formatExposure, relativeDate, normalizeCameraName } from '@/lib/utils'
+import { parseFilterParams, filterQueryString } from '@/lib/photoFilter'
+import { computePhotoNav } from '@/lib/photoNav'
 import PhotoSidebar from '@/components/PhotoSidebar'
 import ZoomableImage from '@/components/ZoomableImage'
 
-export default async function PhotoPage({ params }: { params: Promise<{ photoId: string }> }) {
+export default async function PhotoPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ photoId: string }>
+  searchParams: Promise<Record<string, string | string[]>>
+}) {
   const { photoId } = await params
+  const sp = await searchParams
+  const filter = parseFilterParams(sp)
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
   const photo = db.select().from(photos).where(eq(photos.id, photoId)).get()
   if (!photo) notFound()
+
+  const nav = computePhotoNav(photoId, filter)
+  const navQuery = filterQueryString(filter)
+  const navSuffix = navQuery ? `?${navQuery}` : ''
 
   const photoUser = db.select().from(users).where(eq(users.id, photo.userId)).get()
 
@@ -59,6 +73,20 @@ export default async function PhotoPage({ params }: { params: Promise<{ photoId:
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 3L4.5 7l4 4" /></svg>
             <span className="back-txt">Volver</span>
           </Link>
+
+          {nav.total > 1 && (
+            <div className="photo-nav-counter">{nav.index + 1} / {nav.total}</div>
+          )}
+          {nav.prevId && (
+            <Link href={`/global/photo/${nav.prevId}${navSuffix}`} className="photo-nav-arrow photo-nav-arrow--prev" aria-label="Foto anterior">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 3L4.5 7l4 4" /></svg>
+            </Link>
+          )}
+          {nav.nextId && (
+            <Link href={`/global/photo/${nav.nextId}${navSuffix}`} className="photo-nav-arrow photo-nav-arrow--next" aria-label="Foto siguiente">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5.5 3l4 4-4 4" /></svg>
+            </Link>
+          )}
         </div>
 
         <PhotoSidebar

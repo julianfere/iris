@@ -7,10 +7,10 @@ import { eq, desc, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { relativeDate, normalizeCameraName } from '@/lib/utils'
 import VisitTracker from '@/components/VisitTracker'
-import FeedFAB from '@/components/FeedFAB'
-import PhotoCard from '@/components/PhotoCard'
+import FeedInteractive from '@/components/FeedInteractive'
 import HeaderProfileChip from '@/components/HeaderProfileChip'
 import PullToRefresh from '@/components/PullToRefresh'
+import type { PhotoGridItem } from '@/components/PhotoGrid'
 
 export default async function FeedPage() {
   const session = await auth()
@@ -47,12 +47,28 @@ export default async function FeedPage() {
     db.select({ name: tags.name }).from(tags).all().map(t => t.name)
   )]
 
-  const byDate: Record<string, typeof rows> = {}
-  for (const row of rows) {
-    const label = relativeDate(row.photo.createdAt)
-    if (!byDate[label]) byDate[label] = []
-    byDate[label].push(row)
-  }
+  const items: PhotoGridItem[] = rows.map(({ photo, user }) => {
+    const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
+    const cam  = normalizeCameraName(exif.Make, exif.Model)
+    const fl   = exif.FocalLength ? `${exif.FocalLength} mm` : ''
+    const ar   = photo.width && photo.height ? photo.width / photo.height : 3/2
+    const timeLabel = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    return {
+      photoId: photo.id,
+      userId: photo.userId,
+      avatarColor: user?.avatarColor ?? null,
+      userName: user?.name ?? null,
+      title: photo.title ?? null,
+      cam, fl,
+      size: photo.size,
+      originalSize: photo.originalSize,
+      aspectRatio: ar,
+      timeLabel,
+      tags: tagsByPhoto[photo.id] ?? [],
+      isOwn: photo.userId === session.user!.id,
+      groupLabel: relativeDate(photo.createdAt),
+    }
+  })
 
   return (
     <>
@@ -70,53 +86,10 @@ export default async function FeedPage() {
       <main style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}>
         <PullToRefresh>
         <div className="feed-wrap">
-
-          {rows.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--dim)' }}>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>El carrete está vacío.</div>
-              <div style={{ fontSize: 12 }}>Tocá + para subir la primera foto.</div>
-            </div>
-          )}
-
-          {Object.entries(byDate).map(([label, dateRows]) => (
-            <div key={label}>
-              <div className="date-label">
-                <h2>{label}</h2>
-                <div className="line" />
-                <span className="cnt">{dateRows.length} foto{dateRows.length !== 1 ? 's' : ''}</span>
-              </div>
-              <div className="masonry">
-                {dateRows.map(({ photo, user }) => {
-                  const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
-                  const cam  = normalizeCameraName(exif.Make, exif.Model)
-                  const fl   = exif.FocalLength ? `${exif.FocalLength} mm` : ''
-                  const ar   = photo.width && photo.height ? photo.width / photo.height : 3/2
-                  const timeLabel = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-                  return (
-                    <PhotoCard
-                      key={photo.id}
-                      photoId={photo.id}
-                      userId={photo.userId}
-                      avatarColor={user?.avatarColor ?? null}
-                      userName={user?.name ?? null}
-                      title={photo.title ?? null}
-                      cam={cam}
-                      fl={fl}
-                      size={photo.size}
-                      originalSize={photo.originalSize}
-                      aspectRatio={ar}
-                      timeLabel={timeLabel}
-                      tags={tagsByPhoto[photo.id] ?? []}
-                    />
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+          <FeedInteractive items={items} existingTags={existingTags} />
         </div>
         </PullToRefresh>
       </main>
-      <FeedFAB existingTags={existingTags} />
     </>
   )
 }

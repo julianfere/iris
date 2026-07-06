@@ -17,20 +17,45 @@ type Props = {
   aspectRatio: number
   timeLabel: string
   tags: string[]
+  /** Overrides the default `/global/photo/[id]` target — used to carry the active filter as context. */
+  href?: string
+  selectMode?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
 }
 
 export default function PhotoCard({
   photoId, userId, avatarColor, userName,
   title, cam, fl, size, originalSize, aspectRatio, timeLabel, tags,
+  href, selectMode, selected, onToggleSelect,
 }: Props) {
   const router = useRouter()
 
+  function handleClick() {
+    if (selectMode) { onToggleSelect?.(); return }
+    router.push(href ?? `/global/photo/${photoId}`)
+  }
+
+  function onNestedLinkClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (selectMode) e.preventDefault()
+  }
+
   return (
     <div
-      className="photo-card"
+      className={`photo-card${selected ? ' photo-card--selected' : ''}`}
       style={{ cursor: 'pointer' }}
-      onClick={() => router.push(`/global/photo/${photoId}`)}
+      onClick={handleClick}
     >
+      {selectMode && (
+        <div className={`select-check${selected ? ' select-check--on' : ''}`} aria-hidden="true">
+          {selected && (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2.5 6.2l2.4 2.4L9.5 3.4" />
+            </svg>
+          )}
+        </div>
+      )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`/api/photos/${photoId}/thumb`}
@@ -51,7 +76,7 @@ export default function PhotoCard({
           href={userId ? `/profile?userId=${userId}` : '/global/search'}
           className="m-av"
           style={{ background: avatarColor ?? 'var(--s2)' }}
-          onClick={e => e.stopPropagation()}
+          onClick={onNestedLinkClick}
         >
           {initials(userName ?? '')}
           {userId && (
@@ -65,7 +90,7 @@ export default function PhotoCard({
         </div>
         <span className="m-time">{timeLabel}</span>
       </div>
-      <div className="mobile-tags" onClick={e => e.stopPropagation()}>
+      <div className="mobile-tags" onClick={onNestedLinkClick}>
         {tags.map(t => (
           <Link key={t} href={`/global/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
             {t}

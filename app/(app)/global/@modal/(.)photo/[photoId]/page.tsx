@@ -4,10 +4,20 @@ import { photos, users, favorites, photoTags, tags } from '@/lib/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import { formatExposure, relativeDate, normalizeCameraName } from '@/lib/utils'
+import { parseFilterParams, filterQueryString } from '@/lib/photoFilter'
+import { computePhotoNav } from '@/lib/photoNav'
 import PhotoOverlay from '@/components/PhotoOverlay'
 
-export default async function PhotoModal({ params }: { params: Promise<{ photoId: string }> }) {
+export default async function PhotoModal({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ photoId: string }>
+  searchParams: Promise<Record<string, string | string[]>>
+}) {
   const { photoId } = await params
+  const sp = await searchParams
+  const filter = parseFilterParams(sp)
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
@@ -20,20 +30,8 @@ export default async function PhotoModal({ params }: { params: Promise<{ photoId
   const isFav    = !!db.select({ u: favorites.userId }).from(favorites).where(and(eq(favorites.userId, session.user.id), eq(favorites.photoId, photoId))).get()
   const photoTagNames = db.select({ name: tags.name }).from(photoTags).innerJoin(tags, eq(photoTags.tagId, tags.id)).where(eq(photoTags.photoId, photoId)).all().map(r => r.name)
 
-  const sortKey = photo.takenAt ?? photo.createdAt
-  const prevPhoto = db.select({ id: photos.id })
-    .from(photos)
-    .where(sql`COALESCE(${photos.takenAt}, ${photos.createdAt}) > ${sortKey}`)
-    .orderBy(sql`COALESCE(${photos.takenAt}, ${photos.createdAt}) ASC`)
-    .limit(1)
-    .get()
-
-  const nextPhoto = db.select({ id: photos.id })
-    .from(photos)
-    .where(sql`COALESCE(${photos.takenAt}, ${photos.createdAt}) < ${sortKey}`)
-    .orderBy(sql`COALESCE(${photos.takenAt}, ${photos.createdAt}) DESC`)
-    .limit(1)
-    .get()
+  const nav = computePhotoNav(photoId, filter)
+  const navQuery = filterQueryString(filter)
 
   const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
   const cam  = normalizeCameraName(exif.Make, exif.Model)
@@ -81,8 +79,11 @@ export default async function PhotoModal({ params }: { params: Promise<{ photoId
       isFav={isFav}
       favCount={Number(favCount)}
       isOwn={photo.userId === session.user.id}
-      prevId={prevPhoto?.id ?? null}
-      nextId={nextPhoto?.id ?? null}
+      prevId={nav.prevId}
+      nextId={nav.nextId}
+      index={nav.index}
+      total={nav.total}
+      navQuery={navQuery}
     />
     </>
   )

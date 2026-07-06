@@ -3,18 +3,14 @@ export const dynamic = 'force-dynamic'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { photos, users, tags, photoTags } from '@/lib/schema'
-import { eq, and, desc, sql, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { normalizeCameraName } from '@/lib/utils'
-import PhotoCard from '@/components/PhotoCard'
+import { parseFilterParams, hasActiveFilter, filteredPhotoIds, filterQueryString } from '@/lib/photoFilter'
+import PhotoGrid, { type PhotoGridItem } from '@/components/PhotoGrid'
 import UserAvatar from '@/components/UserAvatar'
 import HeaderProfileChip from '@/components/HeaderProfileChip'
-
-function toArray(val: string | string[] | undefined): string[] {
-  if (!val) return []
-  return typeof val === 'string' ? [val] : val
-}
 
 function buildUrl(tagList: string[], userList: string[], q: string) {
   const p = new URLSearchParams()
@@ -37,9 +33,8 @@ export default async function SearchPage({
   searchParams: Promise<Record<string, string | string[]>>
 }) {
   const sp = await searchParams
-  const q           = (typeof sp.q === 'string' ? sp.q : (sp.q?.[0] ?? '')).trim()
-  const activeTags  = toArray(sp.tag).filter(Boolean)
-  const filterUserIds = toArray(sp.userId).filter(Boolean)
+  const filter = parseFilterParams(sp)
+  const { q, tags: activeTags, userIds: filterUserIds } = filter
 
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
@@ -57,49 +52,48 @@ export default async function SearchPage({
     .from(users)
     .all()
 
-  const hasFilter = q !== '' || activeTags.length > 0 || filterUserIds.length > 0
+  const hasFilter = hasActiveFilter(filter)
   let results: { photo: typeof photos.$inferSelect; user: { id: string; name: string; avatarColor: string } | null }[] = []
 
   if (hasFilter) {
-    const conditions: ReturnType<typeof eq>[] = []
-
-    if (filterUserIds.length > 0) {
-      conditions.push(inArray(photos.userId, filterUserIds) as ReturnType<typeof eq>)
-    }
-
-    if (q) {
-      conditions.push(sql`LOWER(${photos.title}) LIKE LOWER(${'%' + q + '%'})` as ReturnType<typeof eq>)
-    }
-
-    let skip = false
-    if (activeTags.length > 0) {
-      const matchingPhotoIds = db
-        .selectDistinct({ photoId: photoTags.photoId })
-        .from(photoTags)
-        .innerJoin(tags, and(eq(photoTags.tagId, tags.id), inArray(tags.name, activeTags)))
-        .all()
-        .map(r => r.photoId)
-
-      if (matchingPhotoIds.length > 0) {
-        conditions.push(inArray(photos.id, matchingPhotoIds) as ReturnType<typeof eq>)
-      } else {
-        skip = true
-      }
-    }
-
-    if (!skip) {
-      results = db
+    const ids = filteredPhotoIds(filter)
+    if (ids.length > 0) {
+      const rows = db
         .select({
           photo: photos,
           user: { id: users.id, name: users.name, avatarColor: users.avatarColor },
         })
         .from(photos)
         .leftJoin(users, eq(photos.userId, users.id))
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(photos.createdAt))
+        .where(inArray(photos.id, ids))
         .all()
+      const byId = new Map(rows.map(r => [r.photo.id, r]))
+      results = ids.map(id => byId.get(id)).filter((r): r is typeof rows[number] => r !== undefined)
     }
   }
+
+  const items: PhotoGridItem[] = results.map(({ photo, user }) => {
+    const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
+    const cam  = normalizeCameraName(exif.Make, exif.Model)
+    const fl   = exif.FocalLength ? `${exif.FocalLength} mm` : ''
+    const ar   = photo.width && photo.height ? photo.width / photo.height : 3/2
+    const timeLabel = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    return {
+      photoId: photo.id,
+      userId: photo.userId,
+      avatarColor: user?.avatarColor ?? null,
+      userName: user?.name ?? null,
+      title: photo.title ?? null,
+      cam, fl,
+      size: photo.size,
+      originalSize: photo.originalSize,
+      aspectRatio: ar,
+      timeLabel,
+      tags: activeTags,
+      isOwn: photo.userId === session.user!.id,
+    }
+  })
+  const navQuery = filterQueryString(filter)
 
   const filterUserNames = filterUserIds.map(uid => ({
     id: uid,
@@ -244,38 +238,7 @@ export default async function SearchPage({
           {hasFilter && (
             <>
               <div style={{ borderTop: '1px solid var(--line)', marginBottom: 20 }} />
-              {results.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--dim)', fontSize: 13 }}>
-                  Sin resultados.
-                </div>
-              ) : (
-                <div className="masonry">
-                  {results.map(({ photo, user }) => {
-                    const exif = photo.exifData ? JSON.parse(photo.exifData) : {}
-                    const cam  = normalizeCameraName(exif.Make, exif.Model)
-                    const fl   = exif.FocalLength ? `${exif.FocalLength} mm` : ''
-                    const ar   = photo.width && photo.height ? photo.width / photo.height : 3/2
-                    const timeLabel = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-                    return (
-                      <PhotoCard
-                        key={photo.id}
-                        photoId={photo.id}
-                        userId={photo.userId}
-                        avatarColor={user?.avatarColor ?? null}
-                        userName={user?.name ?? null}
-                        title={photo.title ?? null}
-                        cam={cam}
-                        fl={fl}
-                        size={photo.size}
-                        originalSize={photo.originalSize}
-                        aspectRatio={ar}
-                        timeLabel={timeLabel}
-                        tags={activeTags}
-                      />
-                    )
-                  })}
-                </div>
-              )}
+              <PhotoGrid items={items} ctxQuery={navQuery} emptyMessage="Sin resultados." />
             </>
           )}
         </div>
