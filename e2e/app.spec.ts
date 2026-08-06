@@ -1,7 +1,6 @@
 import { test, expect, Page } from '@playwright/test'
 import path from 'path'
 
-const BASE = 'http://localhost:3000'
 const EMAIL = 'test@carrete.dev'
 const PASS = 'testpass123'
 const PHOTO = path.join(__dirname, 'test-photo.jpg')

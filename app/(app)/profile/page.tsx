@@ -63,7 +63,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
     <>
       <header className="app-header">
         <div className="logo-sq" />
-        <Link href="/groups" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: 'var(--txt)' }}>
+        <Link href="/global" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: 'var(--txt)' }}>
           <span className="logo-txt">Iris</span>
         </Link>
         <div style={{ flex: 1 }} />

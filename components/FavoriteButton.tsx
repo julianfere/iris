@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useParams } from 'next/navigation'
 
 export default function FavoriteButton({
   photoId, initialFav, initialCount,

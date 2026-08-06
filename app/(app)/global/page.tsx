@@ -6,7 +6,6 @@ import { photos, users, tags, photoTags } from '@/lib/schema'
 import { eq, desc, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { relativeDate, normalizeCameraName } from '@/lib/utils'
-import VisitTracker from '@/components/VisitTracker'
 import FeedInteractive from '@/components/FeedInteractive'
 import HeaderProfileChip from '@/components/HeaderProfileChip'
 import PullToRefresh from '@/components/PullToRefresh'
@@ -71,9 +70,7 @@ export default async function FeedPage() {
   })
 
   return (
-    <>
-      <VisitTracker />
-      <header className="app-header">
+    <>      <header className="app-header">
         <div className="logo-sq" />
         <span style={{ flex: 1, fontSize: 15, fontWeight: 600, letterSpacing: '-.02em' }}>Iris</span>
         <HeaderProfileChip
