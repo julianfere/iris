@@ -32,7 +32,7 @@ export type PhotoSidebarProps = {
   takenTime: string
   /** false en fotos subidas antes del pipeline de originales. */
   hasOriginal: boolean
-  hasGps: boolean
+  /** Decimales ya resueltos por photoCoords(); null si la foto no trae GPS. */
   gpsLat: number | null
   gpsLon: number | null
   downloadable: boolean
@@ -181,7 +181,7 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
             ))}
           </div>
 
-          {p.hasGps && p.gpsLat !== null && p.gpsLon !== null && (
+          {p.gpsLat !== null && p.gpsLon !== null && (
             <>
               <div className="loc-label">Ubicación</div>
               {/* El recuadro era decorativo: un puntito sobre una caja vacia

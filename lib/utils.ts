@@ -78,6 +78,27 @@ export function normalizeCameraName(make?: string | null, model?: string | null)
   return `${brand} ${modelClean}`
 }
 
+/**
+ * Coordenadas de una foto, o null si no tiene.
+ *
+ * exifr devuelve `GPSLatitude` como el array crudo [grados, minutos, segundos]
+ * y ADEMAS `latitude`/`longitude` ya resueltos a decimal con el hemisferio
+ * aplicado. El visor chequeaba `typeof exif.GPSLatitude === 'number'`, que
+ * sobre un array nunca es cierto: la ubicacion no se mostro nunca, en ninguna
+ * foto. Usar el array a mano tampoco alcanzaba, porque no lleva el signo — sin
+ * GPSLatitudeRef, Buenos Aires cae en el hemisferio norte.
+ */
+export function photoCoords(exif: Record<string, unknown>): { lat: number; lon: number } | null {
+  const lat = exif.latitude
+  const lon = exif.longitude
+  if (typeof lat !== 'number' || typeof lon !== 'number') return null
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+  // 0,0 es el Golfo de Guinea: en la practica siempre es un EXIF vacio.
+  if (lat === 0 && lon === 0) return null
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null
+  return { lat, lon }
+}
+
 export function relativeDate(ts: number): string {
   const d = new Date(ts)
   const today = new Date()

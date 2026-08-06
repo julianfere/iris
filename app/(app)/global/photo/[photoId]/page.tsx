@@ -4,7 +4,7 @@ import { photos, users, favorites, photoTags, tags } from '@/lib/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { formatExposure, relativeDate, normalizeCameraName } from '@/lib/utils'
+import { formatExposure, relativeDate, normalizeCameraName, photoCoords } from '@/lib/utils'
 import { parseFilterParams, filterQueryString } from '@/lib/photoFilter'
 import { computePhotoNav } from '@/lib/photoNav'
 import PhotoSidebar from '@/components/PhotoSidebar'
@@ -47,7 +47,7 @@ export default async function PhotoPage({
   const dim  = photo.width && photo.height ? `${photo.width} × ${photo.height}` : '—'
   const takenLabel = relativeDate(photo.takenAt ?? photo.createdAt)
   const takenTime  = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-  const hasGps = typeof exif.GPSLatitude === 'number' && typeof exif.GPSLongitude === 'number'
+  const coords = photoCoords(exif)
 
   return (
     <>
@@ -111,9 +111,8 @@ export default async function PhotoPage({
           takenLabel={takenLabel}
           takenTime={takenTime}
           hasOriginal={photo.hasOriginal === 1}
-          hasGps={hasGps}
-          gpsLat={hasGps ? exif.GPSLatitude : null}
-          gpsLon={hasGps ? exif.GPSLongitude : null}
+          gpsLat={coords?.lat ?? null}
+          gpsLon={coords?.lon ?? null}
           downloadable={photo.downloadable !== 0}
           shareToken={photo.shareToken ?? null}
           isFav={isFav}
