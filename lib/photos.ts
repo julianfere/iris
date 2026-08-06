@@ -70,7 +70,7 @@ async function writeAtomic(destPath: string, write: (tmp: string) => Promise<voi
     await write(tmp)
     await fs.rename(tmp, destPath)
   } catch (err) {
-    await fs.unlink(tmp).catch(() => {})
+    await safeUnlink(tmp)
     throw err
   }
 }
@@ -89,11 +89,40 @@ export function hashFile(filePath: string): Promise<string> {
 export type Derivative = { width: number; height: number; size: number }
 
 /**
+ * libvips cachea handles de los archivos de entrada, y en Windows eso deja el
+ * original bloqueado: si Sharp falla a mitad de la decodificacion, el unlink
+ * de limpieza tira EPERM y el archivo queda huerfano igual. Apagar el cache lo
+ * libera apenas termina la operacion.
+ */
+let sharpConfigured = false
+async function loadSharp() {
+  const { default: sharp } = await import('sharp')
+  if (!sharpConfigured) {
+    sharp.cache(false)
+    sharpConfigured = true
+  }
+  return sharp
+}
+
+/**
+ * Borra sin romper si el archivo ya no esta, pero avisa cualquier otro error:
+ * tragarlos en silencio es exactamente como se acumularon 72 MB de huerfanos.
+ */
+export async function safeUnlink(filePath: string): Promise<void> {
+  try {
+    await fs.unlink(filePath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return
+    console.error('[photos] no se pudo borrar', filePath, (err as NodeJS.ErrnoException)?.code)
+  }
+}
+
+/**
  * Derivado que ve el visor: grande de verdad, pero acotado para que abrir una
  * foto no baje los 38 MB del original.
  */
 export async function generateDisplay(srcPath: string, destPath: string): Promise<Derivative> {
-  const { default: sharp } = await import('sharp')
+  const sharp = await loadSharp()
   let info!: Derivative
   await writeAtomic(destPath, async tmp => {
     const out = await sharp(srcPath, { failOn: 'none' })
@@ -107,7 +136,7 @@ export async function generateDisplay(srcPath: string, destPath: string): Promis
 }
 
 export async function generateThumb(srcPath: string, destPath: string): Promise<void> {
-  const { default: sharp } = await import('sharp')
+  const sharp = await loadSharp()
   await writeAtomic(destPath, async tmp => {
     await sharp(srcPath, { failOn: 'none' })
       .rotate()
@@ -119,7 +148,7 @@ export async function generateThumb(srcPath: string, destPath: string): Promise<
 
 export async function getImageSize(filePath: string): Promise<{ width?: number; height?: number }> {
   try {
-    const { default: sharp } = await import('sharp')
+    const sharp = await loadSharp()
     const { width, height } = await sharp(filePath).metadata()
     return { width, height }
   } catch {

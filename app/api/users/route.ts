@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
 import { randomAvatarColor } from '@/lib/utils'
-import { checkInvite, isBootstrap, redeemInvite } from '@/lib/invites'
+import { checkInvite, createUserWithInvite, isBootstrap } from '@/lib/invites'
 
 export const runtime = 'nodejs'
 
@@ -52,22 +52,25 @@ export async function POST(req: NextRequest) {
   }
 
   const id = crypto.randomUUID()
+  // El hash va antes de la transaccion: bcrypt es asincrono y las
+  // transacciones de better-sqlite3 son sincronas.
   const passwordHash = await bcrypt.hash(password, 12)
 
-  // Se quema el codigo ANTES de crear la cuenta: si dos altas corren a la vez
-  // con el mismo codigo, solo la que gana el UPDATE condicional sigue.
-  if (!bootstrap && !redeemInvite(inviteCode, id)) {
-    return NextResponse.json({ error: 'Ese codigo de invitacion ya fue usado' }, { status: 403 })
-  }
-
-  db.insert(users).values({
+  const row = {
     id,
     name: String(name).trim(),
     email: normalEmail,
     passwordHash,
     avatarColor: randomAvatarColor(),
     createdAt: Date.now(),
-  }).run()
+  }
+
+  if (bootstrap) {
+    db.insert(users).values(row).run()
+  } else if (!createUserWithInvite(row, inviteCode)) {
+    // Perdio la carrera contra otra alta con el mismo codigo.
+    return NextResponse.json({ error: 'Ese codigo de invitacion ya fue usado' }, { status: 403 })
+  }
 
   return NextResponse.json({ id }, { status: 201 })
 }

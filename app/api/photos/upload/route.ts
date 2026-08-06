@@ -5,12 +5,12 @@ import { photos, tags, photoTags } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
 import Busboy from 'busboy'
 import { createWriteStream } from 'fs'
-import { unlink, stat } from 'fs/promises'
+import { stat } from 'fs/promises'
 import { Readable } from 'stream'
 import path from 'path'
 import {
-  photoPath, thumbPath, displayName, generateThumb, generateDisplay,
-  parseExif, hashFile, ensureDirs,
+  photoPath, thumbPath, displayName, generateThumb, generateDisplay, getImageSize,
+  parseExif, hashFile, ensureDirs, safeUnlink,
 } from '@/lib/photos'
 import { sendPushToAll } from '@/lib/push'
 
@@ -92,8 +92,13 @@ export async function POST(req: NextRequest) {
             }
 
             const display = displayName(id)
-            const { width, height, size: dSize } = await generateDisplay(storedPath, photoPath(display))
+            const { size: dSize } = await generateDisplay(storedPath, photoPath(display))
             await generateThumb(photoPath(display), thumbPath(storedName))
+
+            // Las dimensiones son las del ORIGINAL, no las del derivado: la
+            // ficha las muestra como el tamaño de la foto, y para cualquier
+            // original de mas de 2560px el display miente.
+            const { width, height } = await getImageSize(storedPath)
 
             const rawDate = exif.DateTimeOriginal ?? exif.CreateDate
             const takenAt = rawDate instanceof Date
@@ -139,9 +144,9 @@ export async function POST(req: NextRequest) {
             results.push({ ok: false, name: filename, reason: 'No pudimos procesarla' })
           } finally {
             if (!keep) {
-              await unlink(storedPath).catch(() => {})
-              await unlink(photoPath(displayName(id))).catch(() => {})
-              await unlink(thumbPath(id + ext)).catch(() => {})
+              await safeUnlink(storedPath)
+              await safeUnlink(photoPath(displayName(id)))
+              await safeUnlink(thumbPath(id + ext))
             }
             done()
           }

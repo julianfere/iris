@@ -45,21 +45,42 @@ export function checkInvite(rawCode: string, now = Date.now()): InviteCheck {
 }
 
 /**
- * Marca el codigo como usado solo si sigue libre y vigente. El UPDATE
- * condicional es lo que hace atomica la operacion: dos altas simultaneas con
- * el mismo codigo compiten por la misma fila y una sola ve `changes === 1`.
+ * Crea el usuario y quema el codigo en una sola transaccion.
+ *
+ * Las dos operaciones tienen que ir juntas y en este orden. `invites.used_by`
+ * referencia `users.id`, asi que quemar el codigo primero violaba la foreign
+ * key; y crear el usuario primero sin transaccion dejaria la cuenta hecha si
+ * despues el codigo resulta tomado.
+ *
+ * El UPDATE condicional es lo que da la atomicidad frente a dos altas
+ * simultaneas con el mismo codigo: una sola ve `changes === 1`, la otra tira
+ * y hace rollback de su propio usuario.
  */
-export function redeemInvite(rawCode: string, userId: string, now = Date.now()): boolean {
-  const res = db
-    .update(invites)
-    .set({ usedBy: userId, usedAt: now })
-    .where(and(
-      eq(invites.code, normalizeInviteCode(rawCode)),
-      isNull(invites.usedBy),
-      sql`${invites.expiresAt} >= ${now}`,
-    ))
-    .run()
-  return res.changes === 1
+export function createUserWithInvite(
+  user: typeof users.$inferInsert,
+  rawCode: string,
+  now = Date.now(),
+): boolean {
+  const code = normalizeInviteCode(rawCode)
+  try {
+    db.transaction(tx => {
+      tx.insert(users).values(user).run()
+      const res = tx
+        .update(invites)
+        .set({ usedBy: user.id, usedAt: now })
+        .where(and(
+          eq(invites.code, code),
+          isNull(invites.usedBy),
+          sql`${invites.expiresAt} >= ${now}`,
+        ))
+        .run()
+      if (res.changes !== 1) throw new Error('invite-taken')
+    })
+    return true
+  } catch (err) {
+    if (err instanceof Error && err.message === 'invite-taken') return false
+    throw err
+  }
 }
 
 export function createInvite(createdBy: string, now = Date.now()) {
