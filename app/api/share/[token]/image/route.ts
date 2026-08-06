@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { photos } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
-import { createReadStream, existsSync } from 'fs'
-import { Readable } from 'stream'
-import { photoPath, thumbPath, generateThumb } from '@/lib/photos'
+import { ensureThumb, streamFile } from '@/lib/photoServe'
 
 export const runtime = 'nodejs'
 
@@ -13,18 +11,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const photo = db.select().from(photos).where(eq(photos.shareToken, token)).get()
   if (!photo) return new NextResponse('Not found', { status: 404 })
 
-  const tPath = thumbPath(photo.filename)
-  if (!existsSync(tPath)) {
-    const orig = photoPath(photo.filename)
-    if (!existsSync(orig)) return new NextResponse('File not found', { status: 404 })
-    await generateThumb(orig, tPath)
-  }
+  // Miniatura y no display: el link publico se manda por fuera del carrete,
+  // asi que muestra lo justo para reconocer la foto, no la version buena.
+  const filePath = await ensureThumb(photo)
+  if (!filePath) return new NextResponse('File not found', { status: 404 })
 
-  const webStream = Readable.toWeb(createReadStream(tPath)) as ReadableStream
-  return new NextResponse(webStream, {
-    headers: {
-      'Content-Type': 'image/webp',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-    },
+  return streamFile(filePath, {
+    'Content-Type': 'image/webp',
+    'Cache-Control': 'public, max-age=3600, s-maxage=3600',
   })
 }

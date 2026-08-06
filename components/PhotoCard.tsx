@@ -13,7 +13,7 @@ type Props = {
   cam: string
   fl: string
   size: number
-  originalSize?: number | null
+  hasOriginal: boolean
   aspectRatio: number
   timeLabel: string
   tags: string[]
@@ -26,7 +26,7 @@ type Props = {
 
 export default function PhotoCard({
   photoId, userId, avatarColor, userName,
-  title, cam, fl, size, originalSize, aspectRatio, timeLabel, tags,
+  title, cam, fl, size, hasOriginal, aspectRatio, timeLabel, tags,
   href, selectMode, selected, onToggleSelect,
 }: Props) {
   const router = useRouter()
@@ -63,13 +63,13 @@ export default function PhotoCard({
         loading="lazy"
       />
       <div className="photo-overlay">
-        <div className="orig-badge">● ORIGINAL · {formatBytes(originalSize ?? size)}</div>
+        <div className="orig-badge">● {hasOriginal ? 'ORIGINAL' : 'WEBP'} · {formatBytes(size)}</div>
         <div>
           <div className="overlay-title">{title}</div>
           <div className="overlay-cam">{cam}{fl ? ' · ' + fl : ''}</div>
         </div>
       </div>
-      <div className="mobile-badge">● ORIGINAL · {formatBytes(originalSize ?? size)}</div>
+      <div className="mobile-badge">● {hasOriginal ? 'ORIGINAL' : 'WEBP'} · {formatBytes(size)}</div>
       <div className="mobile-meta">
         <Link
           href={userId ? `/profile?userId=${userId}` : '/global/search'}

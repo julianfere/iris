@@ -4,17 +4,17 @@ Plataforma de fotos privada y self-hosted para compartir fotos en calidad origin
 
 ## Características
 
-- **Fotos sin compresión** — se guardan como WebP de alta calidad con los metadatos EXIF intactos
+- **Fotos sin compresión** — el archivo se guarda tal cual lo subís, con el EXIF intacto; el visor usa un derivado WebP de 2560px y la descarga entrega el original
 - **EXIF completo** — cámara, lente, apertura, velocidad, ISO, focal, GPS
 - **Tags y búsqueda** — organizá fotos por etiquetas y buscá por título, tag o fotógrafo
 - **Favoritos** — marcá las fotos que más te gustan
 - **Perfiles** — avatar, bio, estadísticas de cámaras usadas y fotos subidas
 - **PWA** — instalable en el celular como app nativa
-- **Autenticación propia** — registro por invitación, sesiones JWT, sin servicios externos
+- **Autenticación propia** — registro por invitación con códigos de un solo uso, sesiones JWT, sin servicios externos
 
 ## Stack
 
-- [Next.js 15](https://nextjs.org/) (App Router, standalone output)
+- [Next.js 16](https://nextjs.org/) (App Router, standalone output)
 - [NextAuth v5](https://authjs.dev/) — autenticación con Credentials provider
 - [Drizzle ORM](https://orm.drizzle.team/) + SQLite (`better-sqlite3`)
 - [Sharp](https://sharp.pixelplumbing.com/) — procesamiento de imágenes

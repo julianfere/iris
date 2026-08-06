@@ -47,7 +47,6 @@ export default async function PhotoPage({
   const dim  = photo.width && photo.height ? `${photo.width} × ${photo.height}` : '—'
   const takenLabel = relativeDate(photo.takenAt ?? photo.createdAt)
   const takenTime  = new Date(photo.takenAt ?? photo.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-  const waSize = Math.round(100 + (photo.size % (300 * 1024)) / 1024 * 0.3)
   const hasGps = typeof exif.GPSLatitude === 'number' && typeof exif.GPSLongitude === 'number'
 
   return (
@@ -65,7 +64,7 @@ export default async function PhotoPage({
       <div className="photo-split">
         <div className="photo-img-panel">
           <ZoomableImage
-            src={`/api/photos/${photo.id}/thumb`}
+            src={`/api/photos/${photo.id}/display`}
             alt={photo.title ?? ''}
             className="photo-main"
           />
@@ -95,7 +94,6 @@ export default async function PhotoPage({
           album={photo.album ?? null}
           tags={photoTagNames}
           size={photo.size}
-          originalSize={photo.originalSize}
           mimeType={photo.mimeType}
           originalName={photo.originalName}
           userId={photo.userId}
@@ -110,7 +108,7 @@ export default async function PhotoPage({
           dim={dim}
           takenLabel={takenLabel}
           takenTime={takenTime}
-          waSize={waSize}
+          hasOriginal={photo.hasOriginal === 1}
           hasGps={hasGps}
           gpsLat={hasGps ? exif.GPSLatitude : null}
           gpsLon={hasGps ? exif.GPSLongitude : null}

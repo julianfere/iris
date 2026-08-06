@@ -57,8 +57,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   db.delete(favorites).where(eq(favorites.photoId, id)).run()
   db.delete(photos).where(eq(photos.id, id)).run()
 
-  await fs.unlink(photoPath(photo.filename)).catch(() => {})
-  await fs.unlink(thumbPath(photo.filename)).catch(() => {})
+  // Los tres archivos: original, derivado de display y miniatura. Faltaba el
+  // display, que quedaba en disco sin ninguna fila que lo referenciara.
+  await Promise.all([
+    fs.unlink(photoPath(photo.filename)).catch(() => {}),
+    fs.unlink(thumbPath(photo.filename)).catch(() => {}),
+    photo.displayName ? fs.unlink(photoPath(photo.displayName)).catch(() => {}) : Promise.resolve(),
+  ])
 
   return NextResponse.json({ ok: true })
 }

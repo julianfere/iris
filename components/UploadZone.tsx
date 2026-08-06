@@ -132,7 +132,7 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
         <>
           <h1 className="page-title">Subir al carrete</h1>
           <p className="upload-sub">
-            Tus fotos se guardan tal cual salieron de la cámara. Nada de recompresión: todos las ven y descargan en resolución completa.
+            El archivo se guarda tal cual lo subís, con el EXIF intacto. Para mirar generamos una versión liviana; para descargar viaja el original.
           </p>
         </>
       )}
@@ -348,9 +348,9 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
 
       {!compact && (
         <div className="upload-features">
-          <div className="upload-feature"><div className="feature-title">Sin compresión</div><div className="feature-desc">Cada bit del archivo original se conserva.</div></div>
+          <div className="upload-feature"><div className="feature-title">Sin compresión</div><div className="feature-desc">El archivo original se guarda intacto y es el que se descarga.</div></div>
           <div className="upload-feature"><div className="feature-title">Metadata intacta</div><div className="feature-desc">Cámara, EXIF y GPS se leen y se muestran.</div></div>
-          <div className="upload-feature"><div className="feature-title">Solo tu gente</div><div className="feature-desc">Visible nada más para quienes tienen el link.</div></div>
+          <div className="upload-feature"><div className="feature-title">Solo tu gente</div><div className="feature-desc">Visible para los miembros del carrete. Se entra solo por invitación.</div></div>
         </div>
       )}
     </div>

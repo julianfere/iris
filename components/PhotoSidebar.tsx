@@ -14,7 +14,6 @@ export type PhotoSidebarProps = {
   album: string | null
   tags: string[]
   size: number
-  originalSize?: number | null
   mimeType: string
   originalName: string
   // Author
@@ -31,7 +30,8 @@ export type PhotoSidebarProps = {
   dim: string
   takenLabel: string
   takenTime: string
-  waSize: number
+  /** false en fotos subidas antes del pipeline de originales. */
+  hasOriginal: boolean
   hasGps: boolean
   gpsLat: number | null
   gpsLon: number | null
@@ -122,6 +122,8 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
       {/* Download + Delete */}
       {(p.downloadable || p.isOwn) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+          {/* El peso es el del archivo que realmente se manda. Antes decia
+              originalSize (38 MB) y bajaba el WebP recomprimido (12 MB). */}
           <a
             className="btn-download"
             href={`/api/photos/${p.photoId}/original`}
@@ -130,7 +132,7 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 2v8M5 7l3 3 3-3M3 13.5h10" />
             </svg>
-            Descargar original · {formatBytes(p.originalSize ?? p.size)}
+            {p.hasOriginal ? 'Descargar original' : 'Descargar'} · {formatBytes(p.size)}
           </a>
           {p.isOwn && <DeletePhotoButton photoId={p.photoId} />}
         </div>
@@ -141,7 +143,11 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
 
       <div className="wa-note">
         <span className="ac">↯</span>
-        <span>Por WhatsApp viajaría a ~{p.waSize} KB. Acá baja intacta: {p.dim}.</span>
+        {p.hasOriginal ? (
+          <span>Se guarda tal cual la subiste: {p.dim}, {formatBytes(p.size)}, EXIF intacto.</span>
+        ) : (
+          <span>Subida antes de que guardáramos los originales: lo que queda es un WebP de {p.dim}.</span>
+        )}
       </div>
 
       {/* EXIF colapsable */}

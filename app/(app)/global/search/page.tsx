@@ -86,7 +86,7 @@ export default async function SearchPage({
       title: photo.title ?? null,
       cam, fl,
       size: photo.size,
-      originalSize: photo.originalSize,
+      hasOriginal: photo.hasOriginal === 1,
       aspectRatio: ar,
       timeLabel,
       tags: activeTags,

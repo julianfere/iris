@@ -102,6 +102,32 @@ if (!photoColsShare.some(c => c.name === 'share_token')) {
   sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS photos_share_token_idx ON photos(share_token) WHERE share_token IS NOT NULL')
 }
 
+// Columnas del pipeline de originales. Las filas previas quedan con
+// has_original = 0: en esa epoca el upload recomprimia a WebP y borraba el
+// archivo subido, asi que su `filename` no es el original y no hay forma de
+// recuperarlo. La UI lo dice en vez de mentir sobre el peso.
+for (const [col, ddl] of [
+  ['has_original',  'ALTER TABLE photos ADD COLUMN has_original INTEGER NOT NULL DEFAULT 0'],
+  ['display_name',  'ALTER TABLE photos ADD COLUMN display_name TEXT'],
+  ['display_size',  'ALTER TABLE photos ADD COLUMN display_size INTEGER'],
+  ['content_hash',  'ALTER TABLE photos ADD COLUMN content_hash TEXT'],
+] as const) {
+  const cols = sqlite.prepare('PRAGMA table_info(photos)').all() as { name: string }[]
+  if (!cols.some(c => c.name === col)) {
+    try { sqlite.exec(ddl) } catch {}
+  }
+}
+sqlite.exec('CREATE INDEX IF NOT EXISTS photos_content_hash_idx ON photos(content_hash) WHERE content_hash IS NOT NULL')
+
+// Indices para las consultas calientes: el feed, el perfil y los albumes
+// ordenan por fecha de captura, y sin esto cada request es un full scan.
+sqlite.exec(`
+  CREATE INDEX IF NOT EXISTS photos_taken_idx      ON photos(taken_at DESC, created_at DESC);
+  CREATE INDEX IF NOT EXISTS photos_user_taken_idx ON photos(user_id, taken_at DESC, created_at DESC);
+  CREATE INDEX IF NOT EXISTS favorites_user_idx    ON favorites(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS photo_tags_tag_idx    ON photo_tags(tag_id);
+`)
+
 // Remove group_id from photos (pre-groups-removal installs)
 const photoCols = sqlite.prepare("PRAGMA table_info(photos)").all() as { name: string }[]
 if (photoCols.some(c => c.name === 'group_id')) {

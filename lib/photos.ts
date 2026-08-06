@@ -1,5 +1,12 @@
 import path from 'path'
 import fs from 'fs/promises'
+import { createHash } from 'crypto'
+import { createReadStream } from 'fs'
+
+/** Lado mayor del derivado que consume el visor. */
+export const DISPLAY_MAX_PX = 2560
+/** Lado mayor de la miniatura de las grillas. */
+export const THUMB_MAX_PX = 1400
 
 export const PHOTOS_DIR = process.env.PHOTOS_DIR
   ? process.env.PHOTOS_DIR
@@ -30,21 +37,66 @@ export function thumbPath(filename: string) {
   return path.join(THUMBS_DIR, path.parse(filename).name + '.webp')
 }
 
-export async function compressToWebP(srcPath: string, destPath: string): Promise<{ width: number; height: number; size: number }> {
+export function displayName(id: string) {
+  return `${id}.display.webp`
+}
+
+/**
+ * Escribe via temporal + rename. `rename` es atomico dentro del mismo
+ * filesystem, asi que dos requests que generen el mismo derivado a la vez no
+ * pueden dejar un archivo a medio escribir servido con cache immutable.
+ */
+async function writeAtomic(destPath: string, write: (tmp: string) => Promise<void>): Promise<void> {
+  const tmp = `${destPath}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`
+  try {
+    await write(tmp)
+    await fs.rename(tmp, destPath)
+  } catch (err) {
+    await fs.unlink(tmp).catch(() => {})
+    throw err
+  }
+}
+
+/** SHA-256 por stream: los originales pesan decenas de MB y no entran comodos en RAM. */
+export function hashFile(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256')
+    const rs = createReadStream(filePath)
+    rs.on('data', chunk => hash.update(chunk))
+    rs.on('end', () => resolve(hash.digest('hex')))
+    rs.on('error', reject)
+  })
+}
+
+export type Derivative = { width: number; height: number; size: number }
+
+/**
+ * Derivado que ve el visor: grande de verdad, pero acotado para que abrir una
+ * foto no baje los 38 MB del original.
+ */
+export async function generateDisplay(srcPath: string, destPath: string): Promise<Derivative> {
   const { default: sharp } = await import('sharp')
-  const buffer = await fs.readFile(srcPath)
-  const info = await sharp(buffer)
-    .webp({ quality: 90 })
-    .toFile(destPath)
-  return { width: info.width, height: info.height, size: info.size }
+  let info!: Derivative
+  await writeAtomic(destPath, async tmp => {
+    const out = await sharp(srcPath, { failOn: 'none' })
+      .rotate()
+      .resize(DISPLAY_MAX_PX, DISPLAY_MAX_PX, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 92 })
+      .toFile(tmp)
+    info = { width: out.width, height: out.height, size: out.size }
+  })
+  return info
 }
 
 export async function generateThumb(srcPath: string, destPath: string): Promise<void> {
   const { default: sharp } = await import('sharp')
-  await sharp(srcPath)
-    .resize(1400, 1400, { fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: 90, effort: 6 })
-    .toFile(destPath)
+  await writeAtomic(destPath, async tmp => {
+    await sharp(srcPath, { failOn: 'none' })
+      .rotate()
+      .resize(THUMB_MAX_PX, THUMB_MAX_PX, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 88, effort: 6 })
+      .toFile(tmp)
+  })
 }
 
 export async function getImageSize(filePath: string): Promise<{ width?: number; height?: number }> {
@@ -60,10 +112,11 @@ export async function getImageSize(filePath: string): Promise<{ width?: number; 
 export async function parseExif(filePath: string): Promise<Record<string, unknown>> {
   try {
     const { default: exifr } = await import('exifr')
-    // Pass buffer instead of filepath so exifr doesn't need to use its own fs binding
+    // Se le pasa un Buffer y no la ruta para que exifr no necesite su binding
+    // propio de fs, que bajo el bundle del server no resuelve (de ahi los
+    // "Couldn't load fs / zlib" que exifr avisa al cargarse; son inocuos).
     const buffer = await fs.readFile(filePath)
     const exif = await exifr.parse(buffer, { translateValues: true, translateKeys: true })
-    console.log('[exif]', path.basename(filePath), JSON.stringify(exif)?.slice(0, 300))
     return exif ?? {}
   } catch (err) {
     console.error('[exif] parse error:', path.basename(filePath), err)

@@ -3,9 +3,9 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { photos } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
-import { createReadStream, existsSync } from 'fs'
-import { Readable } from 'stream'
+import { existsSync, statSync } from 'fs'
 import { photoPath } from '@/lib/photos'
+import { attachmentHeader, streamFile } from '@/lib/photoServe'
 
 export const runtime = 'nodejs'
 
@@ -23,14 +23,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const filePath = photoPath(photo.filename)
   if (!existsSync(filePath)) return new NextResponse('File not found', { status: 404 })
 
-  const webStream = Readable.toWeb(createReadStream(filePath)) as ReadableStream
+  // El largo se lee del archivo y no de la columna: si los dos discrepan el
+  // navegador corta la descarga a mitad de camino.
+  const { size } = statSync(filePath)
 
-  return new NextResponse(webStream, {
-    headers: {
-      'Content-Type': photo.mimeType,
-      'Content-Length': String(photo.size),
-      'Content-Disposition': `attachment; filename="${encodeURIComponent(photo.originalName)}"`,
-      'Cache-Control': 'private, max-age=31536000, immutable',
-    },
+  return streamFile(filePath, {
+    'Content-Type': photo.mimeType,
+    'Content-Length': String(size),
+    'Content-Disposition': attachmentHeader(photo.originalName, photo.mimeType),
+    'Cache-Control': 'private, max-age=31536000, immutable',
   })
 }

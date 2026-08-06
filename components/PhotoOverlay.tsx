@@ -120,7 +120,7 @@ export default function PhotoOverlay({ prevId, nextId, index, total, navQuery, .
         {/* Image panel */}
         <div className="photo-img-panel" style={{ background: 'transparent' }}>
           <ZoomableImage
-            src={`/api/photos/${photoId}/thumb`}
+            src={`/api/photos/${photoId}/display`}
             alt={sidebarProps.title ?? ''}
             className="photo-main"
           />

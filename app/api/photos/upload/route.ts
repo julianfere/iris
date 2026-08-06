@@ -8,15 +8,30 @@ import { createWriteStream } from 'fs'
 import { unlink, stat } from 'fs/promises'
 import { Readable } from 'stream'
 import path from 'path'
-import { photoPath, thumbPath, generateThumb, compressToWebP, parseExif, ensureDirs } from '@/lib/photos'
+import {
+  photoPath, thumbPath, displayName, generateThumb, generateDisplay,
+  parseExif, hashFile, ensureDirs,
+} from '@/lib/photos'
 import { sendPushToAll } from '@/lib/push'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
+
+const MIME_BY_EXT: Record<string, string> = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.webp': 'image/webp', '.heic': 'image/heic', '.heif': 'image/heif',
+  '.tif': 'image/tiff', '.tiff': 'image/tiff', '.avif': 'image/avif',
+  '.gif': 'image/gif', '.dng': 'image/x-adobe-dng',
+}
+
+type FileResult =
+  | { ok: true; id: string }
+  | { ok: false; name: string; reason: string }
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = session.user.id
 
   await ensureDirs()
 
@@ -26,7 +41,7 @@ export async function POST(req: NextRequest) {
     limits: { fileSize: 300 * 1024 * 1024, files: 20 },
   })
 
-  const uploadedIds: string[] = []
+  const results: FileResult[] = []
   const filePromises: Promise<void>[] = []
   const batchTags: string[] = []
   let batchTitle: string | null = null
@@ -41,26 +56,44 @@ export async function POST(req: NextRequest) {
 
     busboy.on('file', (_field, file, { filename }) => {
       const id = crypto.randomUUID()
-      const ext = path.extname(filename) || '.jpg'
-      const tempName = id + ext
-      const tempPath = photoPath(tempName)
-      const ws = createWriteStream(tempPath)
+      const ext = (path.extname(filename) || '.jpg').toLowerCase()
+      // El archivo subido se queda tal cual: este ES el original.
+      const storedName = id + ext
+      const storedPath = photoPath(storedName)
+      const ws = createWriteStream(storedPath)
+      let truncated = false
+
+      file.on('limit', () => { truncated = true })
       file.pipe(ws)
 
       filePromises.push(new Promise<void>((done) => {
         ws.on('close', async () => {
+          // `keep` decide en el finally si el original se conserva o se
+          // borra. Antes el unlink del temporal vivia en el camino feliz,
+          // asi que cualquier error dejaba el archivo huerfano para siempre.
+          let keep = false
           try {
-            const [exif, { size: originalSize }] = await Promise.all([
-              parseExif(tempPath),
-              stat(tempPath),
+            if (truncated) {
+              results.push({ ok: false, name: filename, reason: 'Supera el limite de 300 MB' })
+              return
+            }
+
+            const [exif, { size }, contentHash] = await Promise.all([
+              parseExif(storedPath),
+              stat(storedPath),
+              hashFile(storedPath),
             ])
 
-            const storedName = id + '.webp'
-            const filePath = photoPath(storedName)
-            const { width, height, size } = await compressToWebP(tempPath, filePath)
-            await unlink(tempPath)
+            const dup = db.select({ id: photos.id, originalName: photos.originalName })
+              .from(photos).where(eq(photos.contentHash, contentHash)).get()
+            if (dup) {
+              results.push({ ok: false, name: filename, reason: `Ya estaba subida como "${dup.originalName}"` })
+              return
+            }
 
-            await generateThumb(filePath, thumbPath(storedName))
+            const display = displayName(id)
+            const { width, height, size: dSize } = await generateDisplay(storedPath, photoPath(display))
+            await generateThumb(photoPath(display), thumbPath(storedName))
 
             const rawDate = exif.DateTimeOriginal ?? exif.CreateDate
             const takenAt = rawDate instanceof Date
@@ -69,12 +102,16 @@ export async function POST(req: NextRequest) {
 
             db.insert(photos).values({
               id,
-              userId: session.user!.id!,
+              userId,
               filename: storedName,
+              hasOriginal: 1,
+              displayName: display,
+              displaySize: dSize,
+              contentHash,
               originalName: filename,
               size,
-              originalSize,
-              mimeType: 'image/webp',
+              originalSize: size,
+              mimeType: MIME_BY_EXT[ext] ?? 'application/octet-stream',
               width,
               height,
               exifData: JSON.stringify(exif),
@@ -95,11 +132,19 @@ export async function POST(req: NextRequest) {
               db.insert(photoTags).values({ photoId: id, tagId: tag.id }).onConflictDoNothing().run()
             }
 
-            uploadedIds.push(id)
+            keep = true
+            results.push({ ok: true, id })
           } catch (err) {
-            console.error('Error processing photo:', filename, err)
+            console.error('[upload] fallo procesando', filename, err)
+            results.push({ ok: false, name: filename, reason: 'No pudimos procesarla' })
+          } finally {
+            if (!keep) {
+              await unlink(storedPath).catch(() => {})
+              await unlink(photoPath(displayName(id))).catch(() => {})
+              await unlink(thumbPath(id + ext)).catch(() => {})
+            }
+            done()
           }
-          done()
         })
       }))
     })
@@ -107,19 +152,27 @@ export async function POST(req: NextRequest) {
     busboy.on('finish', async () => {
       await Promise.all(filePromises)
 
-      if (uploadedIds.length > 0) {
+      const uploaded = results.filter((r): r is Extract<FileResult, { ok: true }> => r.ok)
+      const failed = results.filter((r): r is Extract<FileResult, { ok: false }> => !r.ok)
+
+      if (uploaded.length > 0) {
         const userName = session.user?.name ?? 'Alguien'
-        const title = uploadedIds.length === 1
+        const title = uploaded.length === 1
           ? `Nueva foto de ${userName}`
-          : `${uploadedIds.length} fotos nuevas de ${userName}`
-        sendPushToAll({ title, url: '/global' }, session.user!.id!).catch(() => {})
+          : `${uploaded.length} fotos nuevas de ${userName}`
+        sendPushToAll({ title, url: '/global' }, userId).catch(() => {})
       }
 
-      resolve(NextResponse.json({ ids: uploadedIds, count: uploadedIds.length }))
+      // 207 cuando algo fallo: el cliente necesita poder distinguir "todo
+      // bien" de "ninguna entro", que antes eran los dos un 200 con tilde.
+      resolve(NextResponse.json(
+        { ids: uploaded.map(u => u.id), count: uploaded.length, failed },
+        { status: failed.length === 0 ? 200 : 207 },
+      ))
     })
 
     busboy.on('error', (err) => {
-      console.error('Busboy error:', err)
+      console.error('[upload] busboy', err)
       resolve(NextResponse.json({ error: 'Upload fallido' }, { status: 500 }))
     })
 

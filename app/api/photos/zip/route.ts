@@ -10,18 +10,31 @@ import { ZipArchive } from 'archiver'
 
 export const runtime = 'nodejs'
 
-export async function GET(req: NextRequest) {
+const MAX_IDS = 500
+
+/**
+ * POST y no GET: los ids iban en el querystring, asi que a partir de ~200
+ * fotos seleccionadas la URL superaba el limite del server y la descarga
+ * fallaba sin decir por que.
+ */
+export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 })
+  const userId = session.user.id
 
-  const ids = (req.nextUrl.searchParams.get('ids') ?? '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean)
+  let ids: string[]
+  try {
+    const body = await req.json()
+    ids = Array.isArray(body?.ids) ? body.ids.filter((v: unknown) => typeof v === 'string' && v) : []
+  } catch {
+    return new NextResponse('Bad request', { status: 400 })
+  }
+
   if (ids.length === 0) return new NextResponse('No ids', { status: 400 })
+  if (ids.length > MAX_IDS) return new NextResponse(`Maximo ${MAX_IDS} fotos por descarga`, { status: 413 })
 
   const rows = db.select().from(photos).where(inArray(photos.id, ids)).all()
-  const allowed = rows.filter(p => p.userId === session.user!.id || p.downloadable !== 0)
+  const allowed = rows.filter(p => p.userId === userId || p.downloadable !== 0)
   if (allowed.length === 0) return new NextResponse('Nothing to download', { status: 403 })
 
   const archive = new ZipArchive({ zlib: { level: 6 } })
@@ -30,6 +43,7 @@ export async function GET(req: NextRequest) {
   archive.pipe(passthrough)
 
   const usedNames = new Set<string>()
+  let added = 0
   for (const photo of allowed) {
     const filePath = photoPath(photo.filename)
     if (!existsSync(filePath)) continue
@@ -42,6 +56,7 @@ export async function GET(req: NextRequest) {
     }
     usedNames.add(name)
     archive.file(filePath, { name })
+    added++
   }
   archive.finalize()
 
@@ -50,7 +65,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(webStream, {
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="carrete-${allowed.length}-fotos.zip"`,
+      'Content-Disposition': `attachment; filename="carrete-${added}-fotos.zip"`,
     },
   })
 }

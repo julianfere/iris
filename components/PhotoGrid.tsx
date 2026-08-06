@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PhotoCard from '@/components/PhotoCard'
+import ConfirmSheet from '@/components/ConfirmSheet'
 
 export type PhotoGridItem = {
   photoId: string
@@ -13,7 +14,7 @@ export type PhotoGridItem = {
   cam: string
   fl: string
   size: number
-  originalSize?: number | null
+  hasOriginal: boolean
   aspectRatio: number
   timeLabel: string
   tags: string[]
@@ -37,6 +38,8 @@ export default function PhotoGrid({
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => { onSelectModeChange?.(selectMode) }, [selectMode, onSelectModeChange])
 
@@ -57,24 +60,40 @@ export default function PhotoGrid({
   const selectedItems = items.filter(i => selected.has(i.photoId))
   const allSelectedOwn = selectedItems.length > 0 && selectedItems.every(i => i.isOwn)
 
-  function downloadSelected() {
-    const ids = [...selected]
-    const url = `/api/photos/zip?ids=${ids.map(encodeURIComponent).join(',')}`
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'carrete.zip'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
+  async function downloadSelected() {
+    setBusy('Preparando…')
+    try {
+      const res = await fetch('/api/photos/zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...selected] }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `carrete-${selected.size}-fotos.zip`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'No se pudo preparar la descarga.')
+    } finally {
+      setBusy(null)
+    }
   }
 
   async function deleteSelected() {
-    if (!allSelectedOwn) return
-    const n = selected.size
-    if (!confirm(`¿Eliminar ${n} foto${n !== 1 ? 's' : ''}? No se puede deshacer.`)) return
+    setConfirmDelete(false)
     setBusy('Eliminando…')
     try {
-      await Promise.all([...selected].map(id => fetch(`/api/photos/${id}`, { method: 'DELETE' })))
+      const res = await Promise.all([...selected].map(id => fetch(`/api/photos/${id}`, { method: 'DELETE' })))
+      const failed = res.filter(r => !r.ok).length
+      if (failed > 0) setError(`No se pudieron eliminar ${failed} foto${failed !== 1 ? 's' : ''}.`)
+    } catch {
+      setError('No se pudieron eliminar las fotos.')
     } finally {
       setBusy(null)
       cancelSelection()
@@ -128,7 +147,7 @@ export default function PhotoGrid({
                 cam={item.cam}
                 fl={item.fl}
                 size={item.size}
-                originalSize={item.originalSize}
+                hasOriginal={item.hasOriginal}
                 aspectRatio={item.aspectRatio}
                 timeLabel={item.timeLabel}
                 tags={item.tags}
@@ -144,26 +163,47 @@ export default function PhotoGrid({
 
       {selectMode && selected.size > 0 && (
         <div className="selection-bar">
-          <span className="selection-count">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span className="selection-count">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
+            {/* El motivo iba en un title=, que en touch no existe: el boton
+                simplemente no respondia y no habia forma de saber por que. */}
+            {!allSelectedOwn && (
+              <span style={{ fontSize: 11.5, color: 'var(--dim)', marginTop: 2 }}>
+                Solo podés eliminar tus fotos
+              </span>
+            )}
+            {error && <span role="alert" style={{ fontSize: 11.5, color: '#f87171', marginTop: 2 }}>{error}</span>}
+          </div>
           <div style={{ flex: 1 }} />
           <button onClick={downloadSelected} disabled={!!busy} className="selection-btn">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 2v8M5 7l3 3 3-3M3 13.5h10" />
             </svg>
-            Descargar
+            {busy === 'Preparando…' ? busy : 'Descargar'}
           </button>
           <button
-            onClick={deleteSelected}
+            onClick={() => setConfirmDelete(true)}
             disabled={!!busy || !allSelectedOwn}
-            title={!allSelectedOwn ? 'Solo podés eliminar tus propias fotos' : undefined}
             className="selection-btn selection-btn--danger"
           >
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 3.5h10M5.5 3.5V2.5h3v1M5 3.5l.5 8M9 3.5l-.5 8" />
             </svg>
-            {busy ?? 'Eliminar'}
+            {busy === 'Eliminando…' ? busy : 'Eliminar'}
           </button>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmSheet
+          title={`¿Eliminar ${selected.size} foto${selected.size !== 1 ? 's' : ''}?`}
+          detail="Se borran el original, el derivado y la miniatura. No se puede deshacer."
+          confirmLabel="Eliminar"
+          danger
+          busy={busy === 'Eliminando…'}
+          onConfirm={deleteSelected}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </>
   )

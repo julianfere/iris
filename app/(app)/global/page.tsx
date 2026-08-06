@@ -61,7 +61,7 @@ export default async function FeedPage() {
       title: photo.title ?? null,
       cam, fl,
       size: photo.size,
-      originalSize: photo.originalSize,
+      hasOriginal: photo.hasOriginal === 1,
       aspectRatio: ar,
       timeLabel,
       tags: tagsByPhoto[photo.id] ?? [],

@@ -33,7 +33,7 @@ export default function LoginPage() {
         </div>
         <div className="auth-left-hero">
           <h1 className="auth-left-title">Tu carrete,<br/>sin compresión.</h1>
-          <p className="auth-left-sub">Compartí fotos en calidad original con tu gente. Sin WhatsApp, sin pérdida.</p>
+          <p className="auth-left-sub">Compartí fotos en calidad original con tu gente. El archivo que subís es el que se descarga.</p>
         </div>
         <div className="auth-left-caption">● ORIGINAL · sin compresión · solo tu gente</div>
         <div className="auth-left-photos">

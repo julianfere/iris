@@ -13,8 +13,21 @@ export const users = sqliteTable('users', {
 export const photos = sqliteTable('photos', {
   id:           text('id').primaryKey(),
   userId:       text('user_id').notNull().references(() => users.id),
+  /** Archivo de mayor calidad en disco. Es lo que sirve /original. */
   filename:     text('filename').notNull(),
+  /**
+   * 1 si `filename` es el archivo tal cual lo subieron. 0 en las filas
+   * anteriores a este cambio, donde el pipeline recomprimia y borraba el
+   * original: ahi lo mejor que queda es el WebP.
+   */
+  hasOriginal:  integer('has_original').notNull().default(0),
+  /** Derivado WebP de 2560px que consume el visor. Se genera on-demand. */
+  displayName:  text('display_name'),
+  displaySize:  integer('display_size'),
+  /** SHA-256 del archivo subido: evita guardar dos veces la misma foto. */
+  contentHash:  text('content_hash'),
   originalName: text('original_name').notNull(),
+  /** Bytes de `filename`. Es lo que se muestra y lo que realmente baja. */
   size:         integer('size').notNull(),
   originalSize: integer('original_size'),
   mimeType:     text('mime_type').notNull(),
