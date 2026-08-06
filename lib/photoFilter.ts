@@ -1,6 +1,18 @@
 import { db } from './db'
 import { photos, photoTags, tags } from './schema'
-import { eq, and, inArray, sql, desc, type SQL } from 'drizzle-orm'
+import { eq, and, inArray, sql, type SQL } from 'drizzle-orm'
+
+/**
+ * Canonical order for a *collection* of photos (a person's roll, an album, a
+ * filtered result set): capture date, newest first.
+ *
+ * `taken_at` is what the photo means to the viewer; `created_at` is only when
+ * the file happened to reach the server. Uploads run concurrently, so within a
+ * single batch `created_at` is decided by whichever file finished Sharp first —
+ * effectively file size, not chronology. `created_at` is the tie-break so the
+ * order stays stable for photos shot in the same second.
+ */
+export const collectionOrder = sql`COALESCE(${photos.takenAt}, ${photos.createdAt}) DESC, ${photos.createdAt} DESC`
 
 export type PhotoFilterParams = {
   q: string
@@ -25,7 +37,7 @@ export function hasActiveFilter(f: PhotoFilterParams): boolean {
   return f.q !== '' || f.tags.length > 0 || f.userIds.length > 0
 }
 
-/** Ordered photo ids matching the filter (newest first). Same order used to render search results. */
+/** Ordered photo ids matching the filter (newest capture first). Same order used to render search results. */
 export function filteredPhotoIds(f: PhotoFilterParams): string[] {
   const conditions: SQL[] = []
 
@@ -50,7 +62,7 @@ export function filteredPhotoIds(f: PhotoFilterParams): string[] {
     .select({ id: photos.id })
     .from(photos)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(photos.createdAt))
+    .orderBy(collectionOrder)
     .all()
     .map(r => r.id)
 }

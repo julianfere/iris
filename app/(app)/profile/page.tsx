@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { photos, users, favorites } from '@/lib/schema'
 import { eq, sql, desc } from 'drizzle-orm'
+import { collectionOrder } from '@/lib/photoFilter'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { initials, normalizeCameraName } from '@/lib/utils'
@@ -24,7 +25,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const user = db.select().from(users).where(eq(users.id, targetId)).get()
   if (!user) redirect('/global')
 
-  const userPhotos = db.select().from(photos).where(eq(photos.userId, targetId)).orderBy(desc(photos.createdAt)).all()
+  const userPhotos = db.select().from(photos).where(eq(photos.userId, targetId)).orderBy(collectionOrder).all()
 
   const cameraMap = new Map<string, CameraEntry>()
   for (const p of userPhotos) {
@@ -52,6 +53,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const hasAvatar = existsSync(avatarPath(targetId))
 
   const tabBase = qUserId ? `userId=${qUserId}&` : ''
+
+  // Carried into the viewer so its prev/next arrows walk this person's roll in
+  // the same order as the grid above — without it they fall back to the feed.
+  const rollQuery = `?userId=${targetId}`
 
   return (
     <>
@@ -123,7 +128,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           <>
             <div className="profile-grid">
               {userPhotos.map(p => (
-                <Link key={p.id} href={`/global/photo/${p.id}`} className="profile-photo-item">
+                <Link key={p.id} href={`/global/photo/${p.id}${rollQuery}`} className="profile-photo-item">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`/api/photos/${p.id}/thumb`} alt={p.title ?? ''} loading="lazy" />
                 </Link>
@@ -149,7 +154,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 </div>
                 <div className="camera-card-thumbs">
                   {cam.sampleIds.map(id => (
-                    <Link key={id} href={`/global/photo/${id}`} className="camera-thumb">
+                    <Link key={id} href={`/global/photo/${id}${rollQuery}`} className="camera-thumb">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={`/api/photos/${id}/thumb`} alt="" loading="lazy" />
                     </Link>
