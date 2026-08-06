@@ -129,7 +129,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             <div className="profile-grid">
               {userPhotos.map(p => (
                 <Link key={p.id} href={`/global/photo/${p.id}${rollQuery}`} className="profile-photo-item">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`/api/photos/${p.id}/thumb`} alt={p.title ?? ''} loading="lazy" />
                 </Link>
               ))}
@@ -155,7 +154,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 <div className="camera-card-thumbs">
                   {cam.sampleIds.map(id => (
                     <Link key={id} href={`/global/photo/${id}${rollQuery}`} className="camera-thumb">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={`/api/photos/${id}/thumb`} alt="" loading="lazy" />
                     </Link>
                   ))}
@@ -171,7 +169,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             <div className="profile-grid">
               {favPhotos.map(p => (
                 <Link key={p.id} href={`/global/photo/${p.id}`} className="profile-photo-item">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`/api/photos/${p.id}/thumb`} alt={p.title ?? ''} loading="lazy" />
                 </Link>
               ))}

@@ -158,7 +158,6 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
         src={src}

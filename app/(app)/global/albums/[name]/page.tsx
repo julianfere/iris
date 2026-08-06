@@ -54,7 +54,6 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ na
               const ar = photo.width && photo.height ? photo.width / photo.height : 3 / 2
               return (
                 <Link key={photo.id} href={`/global/photo/${photo.id}`} className="photo-card">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/api/photos/${photo.id}/thumb`}
                     alt={photo.title ?? ''}

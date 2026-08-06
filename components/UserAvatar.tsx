@@ -31,7 +31,6 @@ export default function UserAvatar({ userId, name, avatarColor, className, style
       }}
     >
       {initials(name)}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
         src={`/api/users/${userId}/avatar`}

@@ -75,7 +75,6 @@ export default async function SharePage({ params }: Props) {
       color: '#e8e8e8',
     }}>
       <div style={{ maxWidth: 720, width: '100%' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/share/${token}/image`}
           alt={photo.title ?? ''}

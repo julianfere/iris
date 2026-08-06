@@ -56,7 +56,6 @@ export default function PhotoCard({
           )}
         </div>
       )}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`/api/photos/${photoId}/thumb`}
         alt={title ?? ''}
@@ -80,7 +79,7 @@ export default function PhotoCard({
         >
           {initials(userName ?? '')}
           {userId && (
-            // eslint-disable-next-line @next/next/no-img-element
+             
             <img src={`/api/users/${userId}/avatar`} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
           )}
         </Link>

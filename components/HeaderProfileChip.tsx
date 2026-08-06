@@ -38,7 +38,6 @@ export default function HeaderProfileChip({ userId, name, avatarColor }: Props) 
         position: 'relative', overflow: 'hidden', flexShrink: 0,
       }}>
         {initials(name)}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={imgRef}
           src={`/api/users/${userId}/avatar`}

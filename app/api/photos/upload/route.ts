@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const uploadedIds: string[] = []
   const filePromises: Promise<void>[] = []
-  let batchTags: string[] = []
+  const batchTags: string[] = []
   let batchTitle: string | null = null
   let batchDownloadable = 1
 
