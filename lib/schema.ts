@@ -45,6 +45,15 @@ export const photoTags = sqliteTable('photo_tags', {
   tagId:   text('tag_id').notNull().references(() => tags.id,     { onDelete: 'cascade' }),
 }, (t) => [primaryKey({ columns: [t.photoId, t.tagId] })])
 
+export const invites = sqliteTable('invites', {
+  code:      text('code').primaryKey(),
+  createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  usedBy:    text('used_by').references(() => users.id),
+  usedAt:    integer('used_at'),
+  expiresAt: integer('expires_at').notNull(),
+  createdAt: integer('created_at').notNull(),
+})
+
 export const pushSubscriptions = sqliteTable('push_subscriptions', {
   id:        text('id').primaryKey(),
   userId:    text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

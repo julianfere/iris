@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [mode, setMode]     = useState<'login'|'register'>('login')
-  const [name, setName]     = useState('')
   const [email, setEmail]   = useState('')
   const [pass, setPass]     = useState('')
   const [error, setError]   = useState('')
@@ -17,14 +15,6 @@ export default function LoginPage() {
     e.preventDefault()
     setError(''); setLoading(true)
     try {
-      if (mode === 'register') {
-        const res = await fetch('/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password: pass }),
-        })
-        if (!res.ok) { setError((await res.json()).error); return }
-      }
       const result = await signIn('credentials', { email, password: pass, redirect: false })
       if (result?.error) { setError('Email o contraseña incorrectos'); return }
       router.push('/global')
@@ -62,29 +52,23 @@ export default function LoginPage() {
             <span className="logo-txt">Iris</span>
           </div>
 
-          <div className="auth-tabs">
-            <button type="button" className={`auth-tab${mode==='login'?' active':''}`}    onClick={()=>setMode('login')}>Entrar</button>
-            <button type="button" className={`auth-tab${mode==='register'?' active':''}`} onClick={()=>setMode('register')}>Crear cuenta</button>
-          </div>
+          <h1 style={{fontSize:20,fontWeight:700,margin:'0 0 22px'}}>Entrar</h1>
 
-          {mode === 'register' && (
-            <>
-              <label className="form-label">Nombre</label>
-              <input className="form-input" style={{marginBottom:16}} value={name} onChange={e=>setName(e.target.value)} placeholder="Cómo te ven tus amigos" required />
-            </>
-          )}
+          <label className="form-label" htmlFor="login-email">Email</label>
+          <input id="login-email" className="form-input" style={{marginBottom:16}} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vos@email.com" autoComplete="email" required />
 
-          <label className="form-label">Email</label>
-          <input className="form-input" style={{marginBottom:16}} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vos@email.com" required />
+          <label className="form-label" htmlFor="login-pass">Contraseña</label>
+          <input id="login-pass" className="form-input" style={{marginBottom:20}} type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" autoComplete="current-password" required />
 
-          <label className="form-label">Contraseña</label>
-          <input className="form-input" style={{marginBottom:20}} type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" required />
-
-          {error && <p style={{color:'#f87171',fontSize:13,marginBottom:14,fontFamily:'var(--mono)'}}>{error}</p>}
+          {error && <p role="alert" style={{color:'#f87171',fontSize:13,marginBottom:14,fontFamily:'var(--mono)'}}>{error}</p>}
 
           <button className="btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Un momento…' : mode==='login' ? 'Entrar' : 'Crear cuenta'}
+            {loading ? 'Un momento…' : 'Entrar'}
           </button>
+
+          <p style={{fontSize:12.5,color:'var(--dim)',marginTop:18,textAlign:'center',lineHeight:1.5}}>
+            Iris es por invitación. Si alguien te invitó, entrá con el link que te pasó.
+          </p>
         </form>
       </div>
     </div>

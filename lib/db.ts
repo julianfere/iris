@@ -57,6 +57,14 @@ sqlite.exec(`
     tag_id   TEXT NOT NULL REFERENCES tags(id)   ON DELETE CASCADE,
     PRIMARY KEY (photo_id, tag_id)
   );
+  CREATE TABLE IF NOT EXISTS invites (
+    code       TEXT PRIMARY KEY,
+    created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    used_by    TEXT REFERENCES users(id),
+    used_at    INTEGER,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS push_subscriptions (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -2,16 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { initials } from '@/lib/utils'
-
-const AVATAR_COLORS = [
-  'hsl(12,32%,34%)',
-  'hsl(210,30%,34%)',
-  'hsl(280,26%,36%)',
-  'hsl(150,26%,32%)',
-  'hsl(330,28%,38%)',
-  'hsl(45,30%,36%)',
-]
+// La paleta vive en lib/utils: el server valida contra esa misma lista, asi
+// que duplicarla aca era la forma segura de que un dia dejaran de coincidir.
+import { AVATAR_COLORS, initials } from '@/lib/utils'
 
 interface Props {
   userId: string

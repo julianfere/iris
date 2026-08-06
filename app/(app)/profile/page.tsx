@@ -11,6 +11,7 @@ import { avatarPath } from '@/lib/photos'
 import ProfileLogout from './ProfileLogout'
 import ProfileEditor from './ProfileEditor'
 import PushSubscribeButton from '@/components/PushSubscribeButton'
+import InviteButton from '@/components/InviteButton'
 
 type CameraEntry = { label: string; count: number; sampleIds: string[] }
 
@@ -104,6 +105,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 avatarColor={user.avatarColor}
                 hasAvatar={hasAvatar}
               />
+              <InviteButton />
               <PushSubscribeButton vapidKey={process.env.VAPID_PUBLIC_KEY ?? ''} />
               <ProfileLogout />
             </div>

@@ -1,11 +1,4 @@
-export function generateInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let code = 'CRT-'
-  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)]
-  return code
-}
-
-const AVATAR_COLORS = [
+export const AVATAR_COLORS = [
   'hsl(12,32%,34%)',
   'hsl(210,30%,34%)',
   'hsl(280,26%,36%)',
@@ -18,8 +11,28 @@ export function randomAvatarColor(): string {
   return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]
 }
 
+/**
+ * El color termina inyectado en un `style` inline que se renderiza para todos
+ * los miembros, asi que solo se acepta de la paleta: un valor libre permitiria
+ * meter `url(...)` y usar el perfil como beacon.
+ */
+export function isValidAvatarColor(value: unknown): value is string {
+  return typeof value === 'string' && (AVATAR_COLORS as readonly string[]).includes(value)
+}
+
+/** UUID v4 tal como lo genera crypto.randomUUID(). */
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
 export function initials(name: string): string {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+  return name
+    .split(/\s+/)
+    .filter(Boolean)          // sin esto, un doble espacio metia "undefined"
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
 }
 
 export function formatBytes(bytes: number): string {

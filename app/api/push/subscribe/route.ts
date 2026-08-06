@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { pushSubscriptions } from '@/lib/schema'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -35,7 +35,14 @@ export async function DELETE(req: NextRequest) {
   const { endpoint } = await req.json()
   if (!endpoint) return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 })
 
-  db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint)).run()
+  // Acotado al dueño: sin el userId, cualquier sesion que conociera un
+  // endpoint ajeno podia desuscribir las notificaciones de otra persona.
+  db.delete(pushSubscriptions)
+    .where(and(
+      eq(pushSubscriptions.endpoint, endpoint),
+      eq(pushSubscriptions.userId, session.user.id),
+    ))
+    .run()
 
   return NextResponse.json({ ok: true })
 }
