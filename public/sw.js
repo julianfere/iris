@@ -72,9 +72,23 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) {
-        if (c.url.includes(self.location.origin)) return c.focus()
+        if (!c.url.startsWith(self.location.origin)) continue
+        // Se navega ANTES de enfocar: antes solo hacia focus(), asi que tocar
+        // la notificacion te dejaba donde estabas en vez de llevarte a la foto.
+        const url = new URL(target, self.location.origin).href
+        return ('navigate' in c ? c.navigate(url) : Promise.resolve(c)).then(w => (w || c).focus())
       }
       return clients.openWindow(target)
     })
   )
+})
+
+// Purga de las miniaturas al cerrar sesion. THUMB_CACHE guarda respuestas
+// marcadas Cache-Control: private, y no habia nada que las limpiara: en un
+// dispositivo compartido, quien entraba despues podia leer las miniaturas del
+// anterior desde el Cache Storage.
+self.addEventListener('message', event => {
+  if (event.data?.type === 'PURGE_PRIVATE_CACHE') {
+    event.waitUntil(caches.delete(THUMB_CACHE))
+  }
 })

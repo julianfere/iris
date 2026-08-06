@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatBytes } from '@/lib/utils'
 
@@ -19,6 +19,8 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
   const [downloadable, setDownloadable] = useState(true)
   const [status, setStatus]             = useState<'idle'|'uploading'|'done'|'error'>('idle')
   const [progress, setProgress]         = useState('')
+  /** Archivos que el server rechazo, por nombre y motivo. */
+  const [rejected, setRejected]         = useState<{ name: string; reason: string }[]>([])
   const [uploadedBytes, setUploadedBytes] = useState(0)
   const [totalBytes, setTotalBytes]       = useState(0)
   const [dragging, setDragging]         = useState(false)
@@ -46,9 +48,30 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
     setSelectedTags(prev => prev.filter(t => t !== tag))
   }
 
+  // Miniaturas de lo seleccionado. Los object URL se revocan al cambiar la
+  // seleccion o al desmontar: sin eso cada tanda deja los blobs en memoria.
+  const previews = useMemo(() => files.map(f => ({ file: f, url: URL.createObjectURL(f) })), [files])
+  useEffect(() => () => { previews.forEach(p => URL.revokeObjectURL(p.url)) }, [previews])
+
+  function addFiles(picked: File[]) {
+    if (!picked.length) return
+    setFiles(prev => {
+      // De-dup por nombre+tamaño: elegir dos veces la misma carpeta era lo
+      // normal y duplicaba todo el lote.
+      const seen = new Set(prev.map(f => `${f.name}:${f.size}`))
+      return [...prev, ...picked.filter(f => !seen.has(`${f.name}:${f.size}`))]
+    })
+    setStatus('idle'); setRejected([])
+  }
+
+  function removeFile(index: number) {
+    setFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    setFiles(Array.from(e.target.files ?? []))
-    setStatus('idle')
+    addFiles(Array.from(e.target.files ?? []))
+    // Se limpia el input para poder volver a elegir el mismo archivo.
+    e.target.value = ''
   }
 
   const onDragEnter = useCallback((e: React.DragEvent) => {
@@ -71,8 +94,7 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
     e.preventDefault()
     dragCounter.current = 0
     setDragging(false)
-    const dropped = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
-    if (dropped.length) { setFiles(dropped); setStatus('idle') }
+    addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')))
   }, [])
 
   function upload() {
@@ -96,13 +118,31 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
     })
 
     xhr.addEventListener('load', () => {
+      // El server responde 207 si alguna entro y otras no, y el detalle de
+      // cada rechazo. Antes todo era 200 y con count 0 el usuario leia
+      // "✓ 0 fotos subidas" en verde, sin saber que habia fallado.
       if (xhr.status >= 200 && xhr.status < 300) {
-        const data = JSON.parse(xhr.responseText)
+        let data: { count?: number; failed?: { name: string; reason: string }[] } = {}
+        try { data = JSON.parse(xhr.responseText) } catch { /* respuesta rara */ }
+        const count = data.count ?? 0
+        const failed = data.failed ?? []
+        setRejected(failed)
+
+        if (count === 0) {
+          setStatus('error')
+          setProgress(failed.length ? 'No se pudo subir ninguna.' : 'No se subió ninguna foto.')
+          return
+        }
+
         setStatus('done')
-        setProgress(`✓ ${data.count} foto${data.count !== 1 ? 's' : ''} subida${data.count !== 1 ? 's' : ''}`)
+        setProgress(`✓ ${count} foto${count !== 1 ? 's' : ''} subida${count !== 1 ? 's' : ''}`)
         router.refresh()
-        if (onSuccess) setTimeout(onSuccess, 900)
-        else setTimeout(() => router.push('/global'), 1200)
+        // Si hubo rechazos la hoja no se cierra sola: el detalle tiene que
+        // quedar a la vista.
+        if (failed.length === 0) {
+          if (onSuccess) setTimeout(onSuccess, 900)
+          else setTimeout(() => router.push('/global'), 1200)
+        }
       } else {
         setStatus('error')
         setProgress('Error al subir. Intentá de nuevo.')
@@ -280,8 +320,45 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
               ? `${files.length} foto${files.length !== 1 ? 's' : ''} · ${formatBytes(totalSize)}`
               : 'Arrastrá tus fotos o tocá para elegir'}
         </div>
-        <div className="dropzone-sub">JPEG · HEIC · PNG · WebP</div>
+        <div className="dropzone-sub">JPEG · HEIC · PNG · WebP · TIFF · DNG</div>
       </label>
+
+      {/* Miniaturas de lo elegido. Antes solo se veia "7 fotos · 84 MB": no
+          habia forma de saber que habias seleccionado ni de sacar una del
+          lote, con un tope de 20 archivos por tanda. */}
+      {previews.length > 0 && status !== 'done' && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{
+            display: 'grid', gap: 8,
+            gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+          }}>
+            {previews.map((p, i) => (
+              <div key={`${p.file.name}:${p.file.size}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--s2)' }}>
+                <img src={p.url} alt={p.file.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                {status !== 'uploading' && (
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    aria-label={`Quitar ${p.file.name}`}
+                    style={{
+                      position: 'absolute', top: 3, right: 3,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: 'rgba(0,0,0,.65)', border: 'none', color: '#fff',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, lineHeight: 1, padding: 0,
+                    }}
+                  >×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {files.length > 20 && (
+            <p style={{ fontSize: 12, color: '#fbbf24', marginTop: 8, fontFamily: 'var(--mono)' }}>
+              Se suben de a 20 por tanda: {files.length - 20} van a quedar afuera.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Upload button */}
       {files.length > 0 && status !== 'done' && status !== 'uploading' && (
@@ -341,9 +418,21 @@ export default function UploadZone({ existingTags = [], onSuccess, compact }: Pr
 
       {/* Success / error message */}
       {progress && status !== 'uploading' && (
-        <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: status === 'done' ? 'var(--ac)' : '#f87171', marginTop: 14 }}>
+        <p role="status" style={{ fontFamily: 'var(--mono)', fontSize: 13, color: status === 'done' ? 'var(--ac)' : '#f87171', marginTop: 14 }}>
           {progress}
         </p>
+      )}
+
+      {/* Cual fallo y por que, en vez de un "Error al subir" generico. */}
+      {rejected.length > 0 && (
+        <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {rejected.map(r => (
+            <li key={r.name} style={{ fontSize: 12.5, color: 'var(--dim)', lineHeight: 1.45 }}>
+              <span style={{ color: '#f87171' }}>×</span>{' '}
+              <strong style={{ fontWeight: 500, color: 'var(--txt)' }}>{r.name}</strong> — {r.reason}
+            </li>
+          ))}
+        </ul>
       )}
 
       {!compact && (

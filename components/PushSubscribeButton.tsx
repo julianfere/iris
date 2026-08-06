@@ -16,17 +16,25 @@ export default function PushSubscribeButton({ vapidKey }: { vapidKey: string }) 
   const [working, setWorking] = useState(false)
 
   useEffect(() => {
-    if (!vapidKey || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setStatus('unsupported'); return
-    }
-    if (Notification.permission === 'denied') {
-      setStatus('denied'); return
-    }
-    navigator.serviceWorker.ready.then(reg =>
-      reg.pushManager.getSubscription().then(sub =>
-        setStatus(sub ? 'subscribed' : 'unsubscribed')
-      )
-    )
+    let alive = true
+    ;(async () => {
+      if (!vapidKey || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        if (alive) setStatus('unsupported')
+        return
+      }
+      if (Notification.permission === 'denied') {
+        if (alive) setStatus('denied')
+        return
+      }
+      try {
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (alive) setStatus(sub ? 'subscribed' : 'unsubscribed')
+      } catch {
+        if (alive) setStatus('unsupported')
+      }
+    })()
+    return () => { alive = false }
   }, [vapidKey])
 
   async function subscribe() {
@@ -78,7 +86,18 @@ export default function PushSubscribeButton({ vapidKey }: { vapidKey: string }) 
     }
   }
 
-  if (status === 'loading' || status === 'unsupported') return null
+  if (status === 'unsupported') return null
+
+  // Placeholder del mismo tamaño mientras se resuelve el estado: devolver
+  // null hacia que el boton apareciera de golpe y empujara la fila de
+  // acciones del perfil.
+  if (status === 'loading') return (
+    <span
+      className="skeleton-line"
+      aria-hidden="true"
+      style={{ width: 132, height: 35, borderRadius: 8, flexShrink: 0 }}
+    />
+  )
 
   if (status === 'denied') return (
     <span style={{ fontSize: 12, color: 'var(--dim)', fontFamily: 'var(--mono)' }}>
@@ -91,6 +110,8 @@ export default function PushSubscribeButton({ vapidKey }: { vapidKey: string }) 
     <button
       onClick={handleClick}
       disabled={working}
+      role="switch"
+      aria-checked={active}
       style={{
         background: 'none',
         border: `1px solid ${active ? 'var(--ac)' : 'var(--line)'}`,
@@ -107,12 +128,15 @@ export default function PushSubscribeButton({ vapidKey }: { vapidKey: string }) 
         opacity: working ? 0.6 : 1,
       }}
     >
+      {/* El estado, no la accion. Antes decia "Sin notificaciones" con la
+          campana tachada JUSTO CUANDO estaban activas, asi que quien las
+          tenia prendidas leia lo contrario de lo que pasaba. */}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
         <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        {active && <line x1="1" y1="1" x2="23" y2="23"/>}
+        {!active && <line x1="1" y1="1" x2="23" y2="23"/>}
       </svg>
-      {active ? 'Sin notificaciones' : 'Notificaciones'}
+      {active ? 'Notificaciones activadas' : 'Activar notificaciones'}
     </button>
   )
 }

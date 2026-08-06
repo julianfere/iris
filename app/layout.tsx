@@ -21,8 +21,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // El zoom queda habilitado: bloquearlo incumple WCAG 1.4.4 y en una app de
+  // fotos el gesto reflejo es pellizcar. El visor tiene su propio zoom, pero
+  // el resto de la interfaz (el EXIF, sobre todo) no tenia ninguno.
   viewportFit: 'cover',
   themeColor: '#0e0e10',
 }

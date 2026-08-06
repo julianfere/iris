@@ -77,10 +77,9 @@ export default function PhotoShareButton({ photoId, initialToken, photoTitle }: 
       .catch(() => {})
   }, [open, shareUrl, qrUrl])
 
-  // Reset QR when token changes (after revoke)
-  useEffect(() => {
-    if (!token) setQrUrl(null)
-  }, [token])
+  // El QR se descarta cuando se revoca el token. Se deriva en el render en
+  // vez de sincronizarse con un effect, que provocaba un render en cascada.
+  const visibleQr = token ? qrUrl : null
 
   // Close on outside click
   useEffect(() => {
@@ -159,8 +158,8 @@ export default function PhotoShareButton({ photoId, initialToken, photoTitle }: 
           </div>
 
           {/* QR */}
-          {qrUrl ? (
-            <img src={qrUrl} alt="QR del enlace" style={{ width: '100%', borderRadius: 8, display: 'block' }} />
+          {visibleQr ? (
+            <img src={visibleQr} alt="QR del enlace" style={{ width: '100%', borderRadius: 8, display: 'block' }} />
           ) : (
             <div style={{ height: 180, background: 'var(--s2)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 12, color: 'var(--dim)' }}>Generando QR…</span>

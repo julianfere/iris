@@ -4,6 +4,7 @@ import { photos, users } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
+import Link from 'next/link'
 
 type Props = { params: Promise<{ token: string }> }
 
@@ -89,7 +90,7 @@ export default async function SharePage({ params }: Props) {
               <p style={{ margin: '4px 0 0', fontSize: 13, color: '#888' }}>por {userName}</p>
             )}
           </div>
-          <a
+          <Link
             href="/"
             style={{
               flexShrink: 0, fontSize: 12, color: '#888',
@@ -98,7 +99,7 @@ export default async function SharePage({ params }: Props) {
             }}
           >
             Abrir Iris
-          </a>
+          </Link>
         </div>
       </div>
     </main>

@@ -184,16 +184,27 @@ export default function PhotoSidebar(p: PhotoSidebarProps) {
           {p.hasGps && p.gpsLat !== null && p.gpsLon !== null && (
             <>
               <div className="loc-label">Ubicación</div>
-              <div className="loc-box">
+              {/* El recuadro era decorativo: un puntito sobre una caja vacia
+                  y coordenadas crudas. Ahora abre el lugar de verdad. */}
+              <a
+                className="loc-box"
+                href={`https://www.openstreetmap.org/?mlat=${p.gpsLat}&mlon=${p.gpsLon}#map=15/${p.gpsLat}/${p.gpsLon}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
                 <div className="loc-map">
                   <div className="loc-dot" />
                   <div className="loc-ring" />
                 </div>
                 <div className="loc-coords">
-                  <span className="loc-place">{p.gpsLat.toFixed(3)}, {p.gpsLon.toFixed(3)}</span>
+                  <span className="loc-place">Ver en el mapa</span>
                   <span className="loc-gps">{p.gpsLat.toFixed(5)}°, {p.gpsLon.toFixed(5)}°</span>
                 </div>
-              </div>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: 'var(--dim)', flexShrink: 0 }}>
+                  <path d="M6 3h7v7M13 3L6.5 9.5M11 9.5v3H3.5V5h3" />
+                </svg>
+              </a>
             </>
           )}
         </>
