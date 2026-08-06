@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Sheet from '@/components/Sheet'
 import QRCode from 'qrcode'
 
 type Invite = {
@@ -49,17 +50,6 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
     return () => ac.abort()
   }, [reloadKey])
 
-  useEffect(() => {
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   function joinUrl(code: string) {
     return `${window.location.origin}/join/${code}`
   }
@@ -106,99 +96,68 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Invitar a alguien"
-      style={{
-        position: 'fixed', inset: 0, zIndex: 900,
-        background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(2px)',
-        display: 'flex', alignItems: 'flex-end',
-        animation: 'cr-fade .15s ease both',
-      }}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div style={{
-        width: '100%', maxHeight: '92dvh', background: 'var(--bg)',
-        borderRadius: '18px 18px 0 0', borderTop: '1px solid var(--line)',
-        overflowY: 'auto', animation: 'sheet-up .22s cubic-bezier(.32,1,.28,1) both',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 0' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line)' }} />
-        </div>
+    <Sheet title="Invitar a alguien" onClose={onClose}>
+      <p style={{ fontSize: 13.5, color: 'var(--dim)', margin: '0 0 16px', lineHeight: 1.5 }}>
+        Cada código sirve para una sola persona y vence a los 7 días.
+      </p>
 
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 20px 0' }}>
-          <span style={{ flex: 1, fontWeight: 600, fontSize: 16 }}>Invitar a alguien</span>
-          <button onClick={onClose} aria-label="Cerrar"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim)', padding: 6, borderRadius: 6 }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <path d="M2 2l12 12M14 2L2 14" />
-            </svg>
-          </button>
-        </div>
+      <button className="sheet-btn sheet-btn--primary" onClick={create} disabled={creating} style={{ width: '100%', marginBottom: 18 }}>
+        {creating ? 'Generando…' : 'Generar invitación'}
+      </button>
 
-        <div style={{ padding: '16px 20px calc(28px + env(safe-area-inset-bottom))' }}>
-          <p style={{ fontSize: 13, color: 'var(--dim)', margin: '0 0 16px', lineHeight: 1.5 }}>
-            Cada código sirve para una sola persona y vence a los 7 días.
-          </p>
+      {error && <p role="alert" style={{ color: '#f87171', fontSize: 13, marginBottom: 14, fontFamily: 'var(--mono)' }}>{error}</p>}
 
-          <button className="btn-primary" onClick={create} disabled={creating} style={{ marginBottom: 18 }}>
-            {creating ? 'Generando…' : 'Generar invitación'}
-          </button>
+      {invites === null && <p style={{ fontSize: 13, color: 'var(--dim)' }}>Cargando…</p>}
 
-          {error && <p role="alert" style={{ color: '#f87171', fontSize: 13, marginBottom: 14, fontFamily: 'var(--mono)' }}>{error}</p>}
+      {invites?.length === 0 && (
+        <p style={{ fontSize: 13, color: 'var(--dim)' }}>Todavía no invitaste a nadie.</p>
+      )}
 
-          {invites === null && <p style={{ fontSize: 13, color: 'var(--dim)' }}>Cargando…</p>}
-
-          {invites?.length === 0 && (
-            <p style={{ fontSize: 13, color: 'var(--dim)' }}>Todavía no invitaste a nadie.</p>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {invites?.map(inv => {
-              const st = statusOf(inv, now)
-              const usable = st.tone === 'open'
-              return (
-                <div key={inv.code} style={{ borderBottom: '1px solid var(--line)', padding: '12px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <code style={{
-                        fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 700, letterSpacing: '.06em',
-                        color: usable ? 'var(--txt)' : 'var(--dim)',
-                        textDecoration: st.tone === 'expired' ? 'line-through' : 'none',
-                      }}>{inv.code}</code>
-                      <div style={{ fontSize: 12, color: st.tone === 'open' ? 'var(--dim)' : 'var(--dim)', marginTop: 3 }}>
-                        {st.label}
-                      </div>
-                    </div>
-                    {usable && (
-                      <>
-                        <button onClick={() => showQr(inv.code)} aria-label={`Ver QR de ${inv.code}`}
-                          style={{ background: 'var(--s2)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--dim)', cursor: 'pointer', fontSize: 12, padding: '6px 10px' }}>
-                          QR
-                        </button>
-                        <button onClick={() => share(inv.code)}
-                          style={{
-                            background: copied === inv.code ? 'color-mix(in srgb, var(--ac) 16%, transparent)' : 'var(--s2)',
-                            border: '1px solid var(--line)', borderRadius: 6,
-                            color: copied === inv.code ? 'var(--ac)' : 'var(--dim)',
-                            cursor: 'pointer', fontSize: 12, padding: '6px 10px', whiteSpace: 'nowrap',
-                          }}>
-                          {copied === inv.code ? '✓ Copiado' : 'Compartir'}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  {qr?.code === inv.code && (
-                    <img src={qr.url} alt={`QR de la invitación ${inv.code}`}
-                      style={{ width: 220, maxWidth: '100%', borderRadius: 8, display: 'block', margin: '12px auto 4px' }} />
-                  )}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {invites?.map(inv => {
+          const st = statusOf(inv, now)
+          const usable = st.tone === 'open'
+          return (
+            <div key={inv.code} style={{ borderBottom: '1px solid var(--line)', padding: '14px 0' }}>
+              {/* Se apila si no entra: con el codigo y dos botones en una fila,
+                  en 360px el ultimo boton quedaba fuera de pantalla. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 150px', minWidth: 0 }}>
+                  <code style={{
+                    fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 700, letterSpacing: '.04em',
+                    color: usable ? 'var(--txt)' : 'var(--dim)',
+                    textDecoration: st.tone === 'expired' ? 'line-through' : 'none',
+                    display: 'block', overflowWrap: 'anywhere',
+                  }}>{inv.code}</code>
+                  <div style={{ fontSize: 12.5, color: 'var(--dim)', marginTop: 3 }}>{st.label}</div>
                 </div>
-              )
-            })}
-          </div>
-        </div>
+                {usable && (
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button onClick={() => showQr(inv.code)} aria-label={`Ver QR de ${inv.code}`}
+                      style={{ minHeight: 40, background: 'var(--s2)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--dim)', cursor: 'pointer', fontSize: 13, padding: '0 14px' }}>
+                      QR
+                    </button>
+                    <button onClick={() => share(inv.code)}
+                      style={{
+                        minHeight: 40,
+                        background: copied === inv.code ? 'color-mix(in srgb, var(--ac) 16%, transparent)' : 'var(--s2)',
+                        border: '1px solid var(--line)', borderRadius: 8,
+                        color: copied === inv.code ? 'var(--ac)' : 'var(--dim)',
+                        cursor: 'pointer', fontSize: 13, padding: '0 14px', whiteSpace: 'nowrap',
+                      }}>
+                      {copied === inv.code ? '✓' : 'Compartir'}
+                    </button>
+                  </div>
+                )}
+              </div>
+              {qr?.code === inv.code && (
+                <img src={qr.url} alt={`QR de la invitación ${inv.code}`}
+                  style={{ width: 220, maxWidth: '100%', borderRadius: 8, display: 'block', margin: '14px auto 4px' }} />
+              )}
+            </div>
+          )
+        })}
       </div>
-    </div>
+    </Sheet>
   )
 }

@@ -825,3 +825,141 @@ body {
   outline: 2px solid var(--ac);
   outline-offset: 3px;
 }
+
+/* ── Hojas inferiores (Sheet) ─────────────────────────────────────────────
+   Mobile-first. Antes cada hoja traia sus propios estilos inline y ninguna
+   contemplaba el teclado, el scroll interno ni pantallas angostas. */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, .6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: cr-fade .15s ease both;
+}
+
+.sheet-panel {
+  --kb: 0px;                     /* alto que tapa el teclado, lo setea Sheet.tsx */
+  width: 100%;
+  max-width: 520px;
+  /* dvh y no vh: en iOS la barra de direcciones hace que vh mienta */
+  max-height: calc(100dvh - 24px - var(--kb));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);         /* var real: --surface no existe y dejaba la hoja transparente */
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  margin-bottom: var(--kb);
+  overscroll-behavior: contain;  /* el scroll no se escapa al feed de atras */
+  animation: sheet-up .22s cubic-bezier(.32, 1, .28, 1) both;
+}
+
+.sheet-grab { display: flex; justify-content: center; padding: 10px 0 2px; flex-shrink: 0 }
+.sheet-grab span { width: 36px; height: 4px; border-radius: 2px; background: var(--line) }
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px 0;
+  flex-shrink: 0;
+}
+.sheet-title { flex: 1; margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em }
+.sheet-close {
+  background: none; border: none; cursor: pointer; color: var(--dim);
+  /* 40px de area tactil: el boton anterior tenia 24 y era casi imposible de dar */
+  width: 40px; height: 40px; margin: -8px -10px -8px 0;
+  display: flex; align-items: center; justify-content: center; border-radius: 8px;
+  flex-shrink: 0;
+}
+.sheet-close:disabled { opacity: .4; cursor: not-allowed }
+
+/* El medio scrollea; encabezado y pie quedan siempre visibles */
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 18px 4px;
+}
+
+.sheet-foot {
+  flex-shrink: 0;
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.sheet-foot > * { flex: 1 1 0; min-width: 0 }
+
+/* Botones de las hojas. 46px de alto: abajo de 44 deja de ser cómodo en touch. */
+.sheet-btn {
+  min-height: 46px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-family: var(--font);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.sheet-btn--ghost  { background: var(--s1); border: 1px solid var(--line); color: var(--txt) }
+.sheet-btn--primary{ background: var(--ac); border: none; color: #fff; font-weight: 500 }
+.sheet-btn--danger { background: #b91c1c; border: none; color: #fff; font-weight: 500 }
+.sheet-btn:disabled { opacity: .6; cursor: not-allowed }
+
+/* Campos dentro de una hoja: 16px evita que iOS haga zoom al enfocar */
+.sheet-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--s1);
+  color: var(--txt);
+  font-family: var(--font);
+  font-size: 16px;
+  outline: none;
+}
+.sheet-field:focus { border-color: var(--ac) }
+
+.sheet-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+
+/* Fila etiqueta + control. Se apila si no entra, en vez de cortarse. */
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sheet-row > :first-child { flex: 1 1 200px; min-width: 0 }
+
+.sheet-switch {
+  width: 46px; height: 28px; border-radius: 14px; border: none;
+  position: relative; cursor: pointer; flex-shrink: 0;
+  background: var(--s2); transition: background .2s;
+}
+.sheet-switch[aria-checked="true"] { background: var(--ac) }
+.sheet-switch span {
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; transition: transform .18s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+.sheet-switch[aria-checked="true"] span { transform: translateX(18px) }
