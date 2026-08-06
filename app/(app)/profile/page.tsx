@@ -12,11 +12,16 @@ import ProfileLogout from './ProfileLogout'
 import ProfileEditor from './ProfileEditor'
 import PushSubscribeButton from '@/components/PushSubscribeButton'
 import InviteButton from '@/components/InviteButton'
+import LoadMore from '@/components/LoadMore'
+import { nextPageHref, parsePageSize, slicePage } from '@/lib/paging'
 
 type CameraEntry = { label: string; count: number; sampleIds: string[] }
 
-export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ userId?: string; tab?: string }> }) {
-  const { userId: qUserId, tab: rawTab } = await searchParams
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams
+  const qUserId = typeof sp.userId === 'string' ? sp.userId : undefined
+  const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined
+  const pageSize = parsePageSize(sp.n)
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
@@ -26,10 +31,19 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const user = db.select().from(users).where(eq(users.id, targetId)).get()
   if (!user) redirect('/global')
 
-  const userPhotos = db.select().from(photos).where(eq(photos.userId, targetId)).orderBy(collectionOrder).all()
+  // El contador de la pestana necesita el total; la grilla, solo una pagina.
+  const photoTotal = Number(db.select({ c: sql<number>`COUNT(*)` }).from(photos).where(eq(photos.userId, targetId)).get()?.c ?? 0)
+  const photoPage = db.select().from(photos).where(eq(photos.userId, targetId))
+    .orderBy(collectionOrder).limit(pageSize + 1).all()
+  const { items: userPhotos, hasMore } = slicePage(photoPage, pageSize)
+
+  // Las camaras se calculan sobre el EXIF de todas las fotos de la persona,
+  // no sobre la pagina visible, o sea que el conteo no cambia al paginar.
+  const exifRows = db.select({ id: photos.id, exifData: photos.exifData })
+    .from(photos).where(eq(photos.userId, targetId)).orderBy(collectionOrder).all()
 
   const cameraMap = new Map<string, CameraEntry>()
-  for (const p of userPhotos) {
+  for (const p of exifRows) {
     const e = p.exifData ? JSON.parse(p.exifData) : {}
     const label = normalizeCameraName(e.Make, e.Model)
     if (label === '—') continue
@@ -90,7 +104,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
 
           {/* Stats */}
           <div className="profile-stats">
-            <div><div className="stat-num">{userPhotos.length}</div><div className="stat-label">fotos</div></div>
+            <div><div className="stat-num">{photoTotal}</div><div className="stat-label">fotos</div></div>
             <div><div className="stat-num">{cameras.length}</div><div className="stat-label">cámaras</div></div>
             <div><div className="stat-num">{Number(totalFavs)}</div><div className="stat-label">favoritos</div></div>
           </div>
@@ -115,7 +129,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         {/* Tab bar */}
         <div className="profile-tabs">
           <Link href={`/profile?${tabBase}tab=fotos`} className={`profile-tab${tab === 'fotos' ? ' active' : ''}`}>
-            Fotos <span className="profile-tab-count">{userPhotos.length}</span>
+            Fotos <span className="profile-tab-count">{photoTotal}</span>
           </Link>
           <Link href={`/profile?${tabBase}tab=camaras`} className={`profile-tab${tab === 'camaras' ? ' active' : ''}`}>
             Cámaras <span className="profile-tab-count">{cameras.length}</span>
@@ -135,6 +149,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 </Link>
               ))}
             </div>
+            {hasMore && <LoadMore href={nextPageHref('/profile', sp, pageSize)} shown={userPhotos.length} />}
             {userPhotos.length === 0 && (
               <p style={{ color: 'var(--dim)', textAlign: 'center', padding: '60px 0' }}>Todavía sin fotos.</p>
             )}

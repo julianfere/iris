@@ -11,14 +11,23 @@ import HeaderProfileChip from '@/components/HeaderProfileChip'
 import { usersWithAvatar } from '@/lib/photos'
 import PullToRefresh from '@/components/PullToRefresh'
 import type { PhotoGridItem } from '@/components/PhotoGrid'
+import LoadMore from '@/components/LoadMore'
+import { nextPageHref, parsePageSize, slicePage } from '@/lib/paging'
 
-export default async function FeedPage() {
+export default async function FeedPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
+  const sp = await searchParams
+  const pageSize = parsePageSize(sp.n)
+
   const me = db.select({ avatarColor: users.avatarColor }).from(users).where(eq(users.id, session.user.id)).get()
 
-  const rows = db
+  const page = db
     .select({
       photo: photos,
       user: { id: users.id, name: users.name, avatarColor: users.avatarColor },
@@ -26,7 +35,10 @@ export default async function FeedPage() {
     .from(photos)
     .leftJoin(users, eq(photos.userId, users.id))
     .orderBy(desc(photos.createdAt))
+    .limit(pageSize + 1)
     .all()
+
+  const { items: rows, hasMore } = slicePage(page, pageSize)
 
   const photoIds = rows.map(r => r.photo.id)
   const tagRows = photoIds.length > 0
@@ -86,6 +98,7 @@ export default async function FeedPage() {
         <PullToRefresh>
         <div className="feed-wrap">
           <FeedInteractive items={items} existingTags={existingTags} />
+          {hasMore && <LoadMore href={nextPageHref('/global', sp, pageSize)} shown={items.length} />}
         </div>
         </PullToRefresh>
       </main>

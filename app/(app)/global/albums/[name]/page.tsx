@@ -1,13 +1,24 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { photos, users, tags, photoTags } from '@/lib/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { initials, formatBytes } from '@/lib/utils'
+import LoadMore from '@/components/LoadMore'
+import { collectionOrder } from '@/lib/photoFilter'
+import { nextPageHref, parsePageSize, slicePage } from '@/lib/paging'
 
-export default async function AlbumDetailPage({ params }: { params: Promise<{ name: string }> }) {
+export default async function AlbumDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ name: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const { name: encodedName } = await params
+  const sp = await searchParams
+  const pageSize = parsePageSize(sp.n)
   const albumName = decodeURIComponent(encodedName)
 
   const session = await auth()
@@ -16,7 +27,7 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ na
   const tag = db.select().from(tags).where(eq(tags.name, albumName)).get()
   if (!tag) notFound()
 
-  const rows = db
+  const page = db
     .select({
       photo: photos,
       user: { id: users.id, name: users.name, avatarColor: users.avatarColor },
@@ -25,8 +36,11 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ na
     .innerJoin(photos, eq(photos.id, photoTags.photoId))
     .leftJoin(users, eq(photos.userId, users.id))
     .where(eq(photoTags.tagId, tag.id))
-    .orderBy(desc(photos.takenAt))
+    .orderBy(collectionOrder)
+    .limit(pageSize + 1)
     .all()
+
+  const { items: rows, hasMore } = slicePage(page, pageSize)
 
   return (
     <>
@@ -53,7 +67,7 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ na
             {rows.map(({ photo, user }) => {
               const ar = photo.width && photo.height ? photo.width / photo.height : 3 / 2
               return (
-                <Link key={photo.id} href={`/global/photo/${photo.id}`} className="photo-card">
+                <Link key={photo.id} href={`/global/photo/${photo.id}?tag=${encodeURIComponent(albumName)}`} className="photo-card">
                   <img
                     src={`/api/photos/${photo.id}/thumb`}
                     alt={photo.title ?? ''}
@@ -61,7 +75,7 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ na
                     loading="lazy"
                   />
                   <div className="photo-overlay">
-                    <div className="orig-badge">● ORIGINAL · {formatBytes(photo.size)}</div>
+                    <div className="orig-badge">● {photo.hasOriginal === 1 ? 'ORIGINAL' : 'WEBP'} · {formatBytes(photo.size)}</div>
                   </div>
                   <div className="mobile-meta">
                     <div className="m-av" style={{ background: user?.avatarColor ?? 'var(--s2)' }}>
@@ -76,6 +90,7 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ na
             })}
           </div>
         )}
+        {hasMore && <LoadMore href={nextPageHref(`/global/albums/${encodedName}`, sp, pageSize)} shown={rows.length} />}
       </div>
     </>
   )
