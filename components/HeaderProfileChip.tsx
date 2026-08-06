@@ -1,24 +1,20 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { initials } from '@/lib/utils'
+import Link from 'next/link'
+import UserAvatar from '@/components/UserAvatar'
 
 type Props = {
   userId: string
   name: string
   avatarColor: string
+  hasAvatar?: boolean
 }
 
-export default function HeaderProfileChip({ userId, name, avatarColor }: Props) {
-  const [loaded, setLoaded] = useState(false)
-  const imgRef = useRef<HTMLImageElement>(null)
-
-  useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true)
-  }, [])
-
+export default function HeaderProfileChip({ userId, name, avatarColor, hasAvatar }: Props) {
   return (
-    <a
+    // Link y no <a>: un <a> forzaba una recarga completa del documento en
+    // cada visita al perfil.
+    <Link
       href="/profile"
       style={{
         display: 'flex', alignItems: 'center', gap: 9,
@@ -30,29 +26,19 @@ export default function HeaderProfileChip({ userId, name, avatarColor }: Props) 
         flexShrink: 0,
       }}
     >
-      <div style={{
-        width: 28, height: 28, borderRadius: '50%',
-        background: avatarColor, color: '#fff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 11, fontWeight: 600,
-        position: 'relative', overflow: 'hidden', flexShrink: 0,
-      }}>
-        {initials(name)}
-        <img
-          ref={imgRef}
-          src={`/api/users/${userId}/avatar`}
-          alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: loaded ? 'block' : 'none' }}
-          onLoad={() => setLoaded(true)}
-          onError={() => {}}
-        />
-      </div>
+      <UserAvatar
+        userId={userId}
+        name={name}
+        avatarColor={avatarColor}
+        hasAvatar={hasAvatar}
+        style={{ width: 28, height: 28, borderRadius: '50%', fontSize: 11, flexShrink: 0 }}
+      />
       <span className="chip-name" style={{ fontSize: 13, fontWeight: 500, color: 'var(--txt)', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {name}
       </span>
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--dim)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <path d="M2 4l4 4 4-4" />
       </svg>
-    </a>
+    </Link>
   )
 }

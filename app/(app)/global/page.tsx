@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation'
 import { relativeDate, normalizeCameraName } from '@/lib/utils'
 import FeedInteractive from '@/components/FeedInteractive'
 import HeaderProfileChip from '@/components/HeaderProfileChip'
+import { usersWithAvatar } from '@/lib/photos'
 import PullToRefresh from '@/components/PullToRefresh'
 import type { PhotoGridItem } from '@/components/PhotoGrid'
 
@@ -77,6 +78,7 @@ export default async function FeedPage() {
           userId={session.user.id}
           name={session.user.name ?? ''}
           avatarColor={me?.avatarColor ?? 'var(--s2)'}
+          hasAvatar={usersWithAvatar().has(session.user.id)}
         />
       </header>
 

@@ -5,6 +5,7 @@ import { eq, sql } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import UserAvatar from '@/components/UserAvatar'
+import { usersWithAvatar } from '@/lib/photos'
 
 export default async function MembersPage() {
   const session = await auth()
@@ -24,6 +25,8 @@ export default async function MembersPage() {
     .groupBy(users.id)
     .orderBy(users.createdAt)
     .all()
+
+  const withAvatar = usersWithAvatar()
 
   return (
     <>
@@ -49,6 +52,7 @@ export default async function MembersPage() {
                 userId={u.id}
                 name={u.name}
                 avatarColor={u.avatarColor ?? 'var(--s2)'}
+                hasAvatar={withAvatar.has(u.id)}
                 style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, fontSize: 14 }}
               />
               <div style={{ flex: 1, minWidth: 0 }}>

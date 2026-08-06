@@ -11,6 +11,7 @@ import { parseFilterParams, hasActiveFilter, filteredPhotoIds, filterQueryString
 import PhotoGrid, { type PhotoGridItem } from '@/components/PhotoGrid'
 import UserAvatar from '@/components/UserAvatar'
 import HeaderProfileChip from '@/components/HeaderProfileChip'
+import { usersWithAvatar } from '@/lib/photos'
 
 function buildUrl(tagList: string[], userList: string[], q: string) {
   const p = new URLSearchParams()
@@ -52,6 +53,7 @@ export default async function SearchPage({
     .from(users)
     .all()
 
+  const withAvatar = usersWithAvatar()
   const hasFilter = hasActiveFilter(filter)
   let results: { photo: typeof photos.$inferSelect; user: { id: string; name: string; avatarColor: string } | null }[] = []
 
@@ -118,6 +120,7 @@ export default async function SearchPage({
           userId={session.user.id}
           name={session.user.name ?? ''}
           avatarColor={allUsers.find(m => m.userId === session.user.id)?.user?.avatarColor ?? 'var(--s2)'}
+          hasAvatar={withAvatar.has(session.user.id)}
         />
       </header>
 
@@ -183,6 +186,7 @@ export default async function SearchPage({
                           userId={m.userId}
                           name={m.user?.name ?? ''}
                           avatarColor={m.user?.avatarColor ?? 'var(--s2)'}
+                          hasAvatar={withAvatar.has(m.userId)}
                           style={{
                             width: 44, height: 44, borderRadius: '50%',
                             fontSize: 15,

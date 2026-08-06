@@ -2,6 +2,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import { createHash } from 'crypto'
 import { createReadStream } from 'fs'
+import nodeFs from 'fs'
 
 /** Lado mayor del derivado que consume el visor. */
 export const DISPLAY_MAX_PX = 2560
@@ -22,6 +23,23 @@ export async function ensureAvatarsDir() {
 
 export function avatarPath(userId: string) {
   return path.join(AVATARS_DIR, userId + '.webp')
+}
+
+/**
+ * Que usuarios tienen archivo de avatar. Un readdir de un directorio chico es
+ * mas barato que un existsSync por miembro, y sobre todo evita que el cliente
+ * pida /avatar de gente que no tiene y coleccione 404 en cada render.
+ */
+export function usersWithAvatar(): Set<string> {
+  try {
+    return new Set(
+      nodeFs.readdirSync(AVATARS_DIR)
+        .filter(f => f.endsWith('.webp'))
+        .map(f => f.slice(0, -'.webp'.length)),
+    )
+  } catch {
+    return new Set()
+  }
 }
 
 export async function ensureDirs() {

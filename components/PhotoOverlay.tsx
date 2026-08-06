@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import PhotoSidebar, { type PhotoSidebarProps } from '@/components/PhotoSidebar'
 import ZoomableImage from '@/components/ZoomableImage'
@@ -23,17 +23,26 @@ export default function PhotoOverlay({ prevId, nextId, index, total, navQuery, .
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const animateIn = !overlayOpen
+  // Cuantas entradas de historial habia al abrir. Si el visor es la primera
+  // pagina de la sesion (link compartido, refresh, notificacion push) no hay
+  // nada atras y router.back() sacaba al usuario de la app.
+  const canGoBack = useRef(true)
 
   const { photoId } = sidebarProps
 
-  function close() {
-    overlayOpen = false
-    router.back()
-  }
+  useEffect(() => {
+    canGoBack.current = window.history.length > 1
+  }, [])
 
-  function goTo(id: string) {
+  const close = useCallback(() => {
+    overlayOpen = false
+    if (canGoBack.current) router.back()
+    else router.push('/global')
+  }, [router])
+
+  const goTo = useCallback((id: string) => {
     router.replace(`/global/photo/${id}${navQuery ? '?' + navQuery : ''}`)
-  }
+  }, [router, navQuery])
 
   useEffect(() => {
     overlayOpen = true
@@ -54,15 +63,15 @@ export default function PhotoOverlay({ prevId, nextId, index, total, navQuery, .
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prevId, nextId])
+  }, [prevId, nextId, close, goTo])
 
-  // Preload adjacent thumbnails
+  // Se precargan los derivados grandes de las fotos vecinas: con las flechas
+  // el salto es constante, asi que cuando llegas la imagen ya esta.
   useEffect(() => {
     for (const id of [prevId, nextId]) {
       if (!id) continue
       const img = new Image()
-      img.src = `/api/photos/${id}/thumb`
+      img.src = `/api/photos/${id}/display`
     }
   }, [prevId, nextId])
 
@@ -120,6 +129,8 @@ export default function PhotoOverlay({ prevId, nextId, index, total, navQuery, .
         {/* Image panel */}
         <div className="photo-img-panel" style={{ background: 'transparent' }}>
           <ZoomableImage
+            key={photoId}
+            placeholderSrc={`/api/photos/${photoId}/thumb`}
             src={`/api/photos/${photoId}/display`}
             alt={sidebarProps.title ?? ''}
             className="photo-main"

@@ -1,8 +1,8 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { initials, formatBytes } from '@/lib/utils'
+import { formatBytes } from '@/lib/utils'
+import UserAvatar from '@/components/UserAvatar'
 
 type Props = {
   photoId: string
@@ -29,39 +29,16 @@ export default function PhotoCard({
   title, cam, fl, size, hasOriginal, aspectRatio, timeLabel, tags,
   href, selectMode, selected, onToggleSelect,
 }: Props) {
-  const router = useRouter()
+  const target = href ?? `/global/photo/${photoId}`
+  const label = title || 'Foto sin título'
 
-  function handleClick() {
-    if (selectMode) { onToggleSelect?.(); return }
-    router.push(href ?? `/global/photo/${photoId}`)
-  }
-
-  function onNestedLinkClick(e: React.MouseEvent) {
+  function onNestedClick(e: React.MouseEvent) {
     e.stopPropagation()
     if (selectMode) e.preventDefault()
   }
 
-  return (
-    <div
-      className={`photo-card${selected ? ' photo-card--selected' : ''}`}
-      style={{ cursor: 'pointer' }}
-      onClick={handleClick}
-    >
-      {selectMode && (
-        <div className={`select-check${selected ? ' select-check--on' : ''}`} aria-hidden="true">
-          {selected && (
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2.5 6.2l2.4 2.4L9.5 3.4" />
-            </svg>
-          )}
-        </div>
-      )}
-      <img
-        src={`/api/photos/${photoId}/thumb`}
-        alt={title ?? ''}
-        style={{ aspectRatio: aspectRatio }}
-        loading="lazy"
-      />
+  const meta = (
+    <>
       <div className="photo-overlay">
         <div className="orig-badge">● {hasOriginal ? 'ORIGINAL' : 'WEBP'} · {formatBytes(size)}</div>
         <div>
@@ -70,18 +47,72 @@ export default function PhotoCard({
         </div>
       </div>
       <div className="mobile-badge">● {hasOriginal ? 'ORIGINAL' : 'WEBP'} · {formatBytes(size)}</div>
+    </>
+  )
+
+  const image = (
+    <img
+      src={`/api/photos/${photoId}/thumb`}
+      alt={label}
+      style={{ aspectRatio: aspectRatio }}
+      loading="lazy"
+    />
+  )
+
+  const check = selectMode && (
+    <div className={`select-check${selected ? ' select-check--on' : ''}`} aria-hidden="true">
+      {selected && (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2.5 6.2l2.4 2.4L9.5 3.4" />
+        </svg>
+      )}
+    </div>
+  )
+
+  // En modo seleccion la tarjeta es un boton con estado; fuera de el, un
+  // enlace de verdad. Antes era siempre un <div onClick>: no se enfocaba con
+  // Tab, no respondia a Enter y ningun lector de pantalla lo anunciaba.
+  const body = (
+    <>
+      {check}
+      {image}
+      {meta}
+    </>
+  )
+
+  return (
+    <div className={`photo-card${selected ? ' photo-card--selected' : ''}`}>
+      {selectMode ? (
+        <button
+          type="button"
+          onClick={onToggleSelect}
+          aria-pressed={selected}
+          aria-label={`${selected ? 'Quitar de la selección' : 'Seleccionar'}: ${label}`}
+          className="photo-card-hit"
+          style={{ display: 'contents', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+        >
+          {body}
+        </button>
+      ) : (
+        <Link href={target} className="photo-card-hit" style={{ display: 'contents' }} aria-label={label}>
+          {body}
+        </Link>
+      )}
+
       <div className="mobile-meta">
         <Link
           href={userId ? `/profile?userId=${userId}` : '/global/search'}
           className="m-av"
-          style={{ background: avatarColor ?? 'var(--s2)' }}
-          onClick={onNestedLinkClick}
+          onClick={onNestedClick}
+          aria-label={userName ? `Ver el perfil de ${userName}` : 'Buscar'}
+          style={{ padding: 0, border: 'none' }}
         >
-          {initials(userName ?? '')}
-          {userId && (
-             
-            <img src={`/api/users/${userId}/avatar`} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          )}
+          <UserAvatar
+            userId={userId}
+            name={userName ?? ''}
+            avatarColor={avatarColor ?? 'var(--s2)'}
+            style={{ width: '100%', height: '100%', borderRadius: '50%', fontSize: 'inherit' }}
+          />
         </Link>
         <div className="m-info">
           <div className="m-title">{title}</div>
@@ -89,7 +120,8 @@ export default function PhotoCard({
         </div>
         <span className="m-time">{timeLabel}</span>
       </div>
-      <div className="mobile-tags" onClick={onNestedLinkClick}>
+
+      <div className="mobile-tags" onClick={onNestedClick}>
         {tags.map(t => (
           <Link key={t} href={`/global/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
             {t}

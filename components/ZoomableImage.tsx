@@ -1,30 +1,45 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 type Pt = { x: number; y: number }
 
-export default function ZoomableImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+type Props = {
+  /** Miniatura ya cacheada por la grilla: aparece al instante como placeholder. */
+  placeholderSrc?: string
+  /** Derivado grande. Reemplaza al placeholder cuando termina de cargar. */
+  src: string
+  alt: string
+  className?: string
+}
+
+export default function ZoomableImage({ placeholderSrc, src, alt, className }: Props) {
   const [scale, setScale] = useState(1)
   const [offset, setOffset] = useState<Pt>({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
+  const [fullLoaded, setFullLoaded] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
+  // Espejo en refs para los handlers nativos (wheel/touch) que se registran una
+  // sola vez. Se sincroniza en un effect y no en el cuerpo del render: escribir
+  // un ref durante el render es justo lo que React desaconseja.
   const scaleRef = useRef(1)
   const offsetRef = useRef<Pt>({ x: 0, y: 0 })
-  scaleRef.current = scale
-  offsetRef.current = offset
+  useEffect(() => { scaleRef.current = scale }, [scale])
+  useEffect(() => { offsetRef.current = offset }, [offset])
 
   const dragStart = useRef<Pt>({ x: 0, y: 0 })
   const dragBase = useRef<Pt>({ x: 0, y: 0 })
   const dragActive = useRef(false)
   const pinchBase = useRef<{ dist: number; scale: number; offset: Pt } | null>(null)
-  const lastTap = useRef(0)
+  const lastTap = useRef<{ t: number; x: number; y: number }>({ t: 0, x: 0, y: 0 })
 
-  // Clamp offset so scaled image can't go fully out of the wrapper bounds.
-  // Uses the *rendered* image size (imgRef) vs wrapper size (wrapRef).
-  function clamp(ox: number, oy: number, s: number): Pt {
+  // El reset entre fotos lo hace un key={src} en el llamador, no un effect:
+  // navegar con las flechas debe empezar de cero, y remontar es la forma que
+  // React recomienda para eso.
+
+  const clamp = useCallback((ox: number, oy: number, s: number): Pt => {
     const wrap = wrapRef.current
     const img = imgRef.current
     if (!wrap || !img) return { x: ox, y: oy }
@@ -34,9 +49,9 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
       x: Math.max(-maxX, Math.min(maxX, ox)),
       y: Math.max(-maxY, Math.min(maxY, oy)),
     }
-  }
+  }, [])
 
-  function applyZoom(ns: number, cx: number, cy: number, baseScale: number, baseOffset: Pt) {
+  const applyZoom = useCallback((ns: number, cx: number, cy: number, baseScale: number, baseOffset: Pt) => {
     const s = Math.max(1, Math.min(5, ns))
     if (s <= 1) {
       setScale(1); setOffset({ x: 0, y: 0 })
@@ -52,9 +67,9 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
     const clamped = clamp(px * (1 - ratio) + baseOffset.x * ratio, py * (1 - ratio) + baseOffset.y * ratio, s)
     setScale(s); setOffset(clamped)
     scaleRef.current = s; offsetRef.current = clamped
-  }
+  }, [clamp])
 
-  // Non-passive wheel + touchmove so e.preventDefault() actually works
+  // wheel y touchmove no pasivos para que preventDefault() surta efecto.
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
@@ -66,8 +81,7 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
     el.addEventListener('wheel', onWheel, { passive: false })
     el.addEventListener('touchmove', onTouchMove, { passive: false })
     return () => { el.removeEventListener('wheel', onWheel); el.removeEventListener('touchmove', onTouchMove) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [applyZoom])
 
   function onDoubleClick(e: React.MouseEvent) {
     if (scaleRef.current > 1) applyZoom(1, 0, 0, 1, { x: 0, y: 0 })
@@ -97,18 +111,22 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
       const [a, b] = [e.touches[0], e.touches[1]]
       pinchBase.current = { dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), scale: scaleRef.current, offset: { ...offsetRef.current } }
     } else if (e.touches.length === 1) {
+      const t = e.touches[0]
       const now = Date.now()
-      if (now - lastTap.current < 300) {
-        lastTap.current = 0
-        const t = e.touches[0]
+      const prev = lastTap.current
+      // Ademas del tiempo se mide la distancia: solo con el intervalo, dos
+      // toques en esquinas opuestas contaban como doble tap.
+      const near = Math.hypot(t.clientX - prev.x, t.clientY - prev.y) < 40
+      if (now - prev.t < 300 && near) {
+        lastTap.current = { t: 0, x: 0, y: 0 }
         if (scaleRef.current > 1) applyZoom(1, 0, 0, 1, { x: 0, y: 0 })
         else applyZoom(2.5, t.clientX, t.clientY, 1, { x: 0, y: 0 })
         return
       }
-      lastTap.current = now
+      lastTap.current = { t: now, x: t.clientX, y: t.clientY }
       if (scaleRef.current > 1) {
         dragActive.current = true; setDragging(true)
-        dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        dragStart.current = { x: t.clientX, y: t.clientY }
         dragBase.current = { ...offsetRef.current }
       }
     }
@@ -132,18 +150,17 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
     if (e.touches.length === 0) stopDrag()
   }
 
+  const transform = `translate(${offset.x}px, ${offset.y}px) scale(${scale})`
+
   return (
     <div
       ref={wrapRef}
       style={{
-        // Fill the entire photo-img-panel (flex parent on desktop)
         flex: '1 1 auto',
         alignSelf: 'stretch',
-        // Center the image inside
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        // Clip zoomed overflow at panel bounds
         position: 'relative',
         overflow: 'hidden',
         touchAction: scale > 1 ? 'none' : 'auto',
@@ -158,6 +175,24 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      {/* Miniatura debajo: el navegador ya la tiene de la grilla, asi que se
+          ve algo de inmediato en vez de un hueco negro mientras baja la
+          version grande. Se difumina apenas para que el salto no se note. */}
+      {placeholderSrc && !fullLoaded && (
+        <img
+          src={placeholderSrc}
+          alt=""
+          aria-hidden="true"
+          className={className}
+          style={{
+            position: 'absolute', display: 'block',
+            transform, transformOrigin: 'center center',
+            filter: 'blur(6px)', transition: 'opacity .2s',
+            userSelect: 'none', pointerEvents: 'none',
+          }}
+        />
+      )}
+
       <img
         ref={imgRef}
         src={src}
@@ -165,11 +200,13 @@ export default function ZoomableImage({ src, alt, className }: { src: string; al
         className={className}
         draggable={false}
         loading="eager"
+        onLoad={() => setFullLoaded(true)}
         style={{
           display: 'block',
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transform,
           transformOrigin: 'center center',
           transition: dragging ? 'none' : 'transform .18s ease',
+          opacity: fullLoaded || !placeholderSrc ? 1 : 0,
           userSelect: 'none',
           willChange: scale > 1 ? 'transform' : 'auto',
           pointerEvents: 'none',

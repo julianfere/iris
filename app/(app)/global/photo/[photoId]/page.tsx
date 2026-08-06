@@ -64,6 +64,8 @@ export default async function PhotoPage({
       <div className="photo-split">
         <div className="photo-img-panel">
           <ZoomableImage
+            key={photo.id}
+            placeholderSrc={`/api/photos/${photo.id}/thumb`}
             src={`/api/photos/${photo.id}/display`}
             alt={photo.title ?? ''}
             className="photo-main"
