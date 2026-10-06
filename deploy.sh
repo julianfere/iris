@@ -20,6 +20,10 @@ cd "$SCRIPT_DIR"
 
 t() { date +%s; }
 
+# Puerto: env > .env > default (debe coincidir con docker-compose.yml)
+PORT="${PORT:-$(grep -E '^PORT=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"\r' || true)}"
+PORT="${PORT:-3003}"
+
 # ── Check for remote changes ──────────────────────────────────────────────────
 step "Checking for updates..."
 git fetch --quiet
@@ -72,7 +76,7 @@ MAX_WAIT=90
 echo -ne "  Waiting for health"
 HEALTHY=false
 for i in $(seq 1 $MAX_WAIT); do
-  if wget -qO- http://localhost:3000/api/health &>/dev/null; then
+  if wget -qO- http://localhost:${PORT}/api/health &>/dev/null; then
     HEALTHY=true
     break
   fi
