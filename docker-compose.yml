@@ -5,7 +5,7 @@ services:
     container_name: carrete
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${PORT-3003}:3003"
     volumes:
       - ./data:/app/data      # SQLite DB
       - ./photos:/app/photos  # fotos originales + thumbs
