@@ -20,5 +20,11 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
     networks:
       - default
+    volumes:
+      - carrete-data:/app/data
+      - carrete-photos:/app/photos
 
+volumes:
+  carrete-data:
+  carrete-photos:
       
