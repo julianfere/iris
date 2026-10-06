@@ -25,8 +25,3 @@ services:
       retries: 3
     networks:
       - default
-      - nginxproxymanager_proxy
-
-networks:
-   nginxproxymanager_proxy:
-      external: true
